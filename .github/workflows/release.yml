@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.4'
+
+      - name: Build binary
+        run: |
+          go build -o contagent -ldflags="-s -w" .
+          chmod +x contagent
+
+      - name: Delete existing draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Get draft release ID if it exists
+          DRAFT_ID=$(gh api repos/${{ github.repository }}/releases \
+            --jq '.[] | select(.draft == true) | .id' | head -n 1)
+          
+          if [ -n "$DRAFT_ID" ]; then
+            echo "Deleting existing draft release: $DRAFT_ID"
+            gh api -X DELETE repos/${{ github.repository }}/releases/$DRAFT_ID
+          else
+            echo "No existing draft release found"
+          fi
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Generate release notes
+          COMMIT_SHA=${{ github.sha }}
+          COMMIT_MSG=$(git log -1 --pretty=%B $COMMIT_SHA)
+          
+          # Create draft release
+          gh release create "draft-${COMMIT_SHA:0:7}" \
+            --draft \
+            --title "Draft Release" \
+            --notes "**Latest commit:** $COMMIT_SHA
+
+$COMMIT_MSG
+
+---
+Built from commit: $COMMIT_SHA" \
+            contagent

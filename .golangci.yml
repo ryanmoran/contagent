@@ -1,0 +1,82 @@
+version: 2
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - gocritic
+    - revive
+    - staticcheck
+    - unused
+    - ineffassign
+    - misspell
+    - gosec
+    - unconvert
+    - unparam
+    - gocyclo
+
+  disable:
+    - depguard
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    govet:
+      enable-all: true
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+        - name: unused-parameter
+          disabled: true
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    gofmt:
+      simplify: true
+
+    goimports:
+      local-prefixes: github.com/contagent
+
+run:
+  timeout: 5m
+  go: "1.25"
+
+issues:
+  exclude-dirs:
+    - vendor
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  formats:
+    text:
+      print-linter-name: true
+      print-issued-lines: true
+      color: true
+  sort-order:
+    - file
+    - linter
+    - severity
