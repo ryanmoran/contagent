@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.4'
+          go-version: "1.25.4"
 
       - name: Build binary
         run: |
@@ -33,7 +33,7 @@ jobs:
           # Get draft release ID if it exists
           DRAFT_ID=$(gh api repos/${{ github.repository }}/releases \
             --jq '.[] | select(.draft == true) | .id' | head -n 1)
-          
+
           if [ -n "$DRAFT_ID" ]; then
             echo "Deleting existing draft release: $DRAFT_ID"
             gh api -X DELETE repos/${{ github.repository }}/releases/$DRAFT_ID
@@ -48,15 +48,10 @@ jobs:
           # Generate release notes
           COMMIT_SHA=${{ github.sha }}
           COMMIT_MSG=$(git log -1 --pretty=%B $COMMIT_SHA)
-          
+
           # Create draft release
           gh release create "draft-${COMMIT_SHA:0:7}" \
             --draft \
             --title "Draft Release" \
-            --notes "**Latest commit:** $COMMIT_SHA
-
-$COMMIT_MSG
-
----
-Built from commit: $COMMIT_SHA" \
+            --notes "**Latest commit:** $COMMIT_SHA\n\n$COMMIT_MSG\n\n---\nBuilt from commit: $COMMIT_SHA" \
             contagent
