@@ -170,7 +170,7 @@ func TestContainerResizeIntegration(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		writer := newMockWriter()

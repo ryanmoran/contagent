@@ -27,6 +27,7 @@ func TestConfig(t *testing.T) {
 				"ANTHROPIC_API_KEY=some-api-key",
 				"SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock",
 			}), config.Env)
+			require.Equal(t, "default", config.Network)
 		})
 
 		t.Run("with --env flags", func(t *testing.T) {
@@ -124,6 +125,19 @@ func TestConfig(t *testing.T) {
 
 			config := internal.ParseConfig(args, env)
 			require.Equal(t, "/some/path/to/a/Dockerfile", config.DockerfilePath)
+		})
+
+		t.Run("when given a --network flag", func(t *testing.T) {
+			args := []string{
+				"--network", "some-network",
+				"some-program",
+			}
+			env := []string{
+				"TERM=some-term",
+			}
+
+			config := internal.ParseConfig(args, env)
+			require.Equal(t, "some-network", config.Network)
 		})
 	})
 }

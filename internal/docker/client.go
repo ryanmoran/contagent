@@ -141,7 +141,7 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 // It configures the container with TTY support, stdin attachment, environment variables,
 // working directory, volume mounts, and network settings to allow communication with the host
 // via host.docker.internal. Returns a Container handle or an error if creation fails.
-func (c Client) CreateContainer(ctx context.Context, sessionID internal.SessionID, image Image, args internal.Command, env internal.Environment, volumes []string, workingDir string, stopTimeout, ttyRetries int, retryDelay time.Duration) (Container, error) {
+func (c Client) CreateContainer(ctx context.Context, sessionID internal.SessionID, image Image, args internal.Command, env internal.Environment, volumes []string, workingDir, network string, stopTimeout, ttyRetries int, retryDelay time.Duration) (Container, error) {
 	response, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
 		Config: &container.Config{
 			Image:        image.Name,
@@ -158,7 +158,8 @@ func (c Client) CreateContainer(ctx context.Context, sessionID internal.SessionI
 			ExtraHosts: []string{
 				"host.docker.internal:host-gateway",
 			},
-			Binds: volumes,
+			Binds:       volumes,
+			NetworkMode: container.NetworkMode(network),
 		},
 		Name:             string(sessionID),
 		NetworkingConfig: nil,
