@@ -33,7 +33,7 @@ func TestContainerStartWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -55,7 +55,7 @@ func TestContainerStartWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -84,7 +84,7 @@ func TestContainerRemoveWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.Remove(ctx)
@@ -106,7 +106,7 @@ func TestContainerRemoveWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.Remove(ctx)
@@ -135,7 +135,7 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -157,7 +157,7 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -186,7 +186,7 @@ func TestContainerCopyToWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
@@ -208,7 +208,7 @@ func TestContainerCopyToWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
@@ -239,7 +239,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		writer := newMockWriter()
@@ -265,7 +265,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"sh", "-c", "exit 42"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"sh", "-c", "exit 42"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		writer := newMockWriter()
@@ -291,7 +291,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		writer := newMockWriter()

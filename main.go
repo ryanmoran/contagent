@@ -81,6 +81,7 @@ func run(args, env []string) error {
 		config.Env,
 		config.Volumes,
 		config.WorkingDir,
+		config.Network,
 		config.StopTimeout,
 		config.TTYRetries,
 		config.RetryDelay,

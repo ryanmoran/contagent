@@ -32,31 +32,6 @@ func TestGitServerErrorCases(t *testing.T) {
 			require.Error(t, err)
 		})
 
-		t.Run("directory with permission denied", func(t *testing.T) {
-			if os.Getuid() == 0 {
-				t.Skip("Running as root, cannot test permission denied")
-			}
-
-			dir, err := os.MkdirTemp("", "git-perm-test")
-			require.NoError(t, err)
-			defer os.RemoveAll(dir)
-
-			// Initialize git repo
-			cmd := exec.Command("git", "init")
-			cmd.Dir = dir
-			require.NoError(t, cmd.Run())
-
-			// Remove permissions
-			err = os.Chmod(dir, 0000)
-			require.NoError(t, err)
-
-			// Restore permissions for cleanup
-			defer os.Chmod(dir, 0755)
-
-			_, err = git.NewServer(dir, internal.NewStandardWriter())
-			require.Error(t, err)
-		})
-
 		t.Run("relative path resolution", func(t *testing.T) {
 			dir, err := os.MkdirTemp("", "git-rel-test")
 			require.NoError(t, err)

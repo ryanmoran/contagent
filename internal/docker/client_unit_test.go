@@ -155,7 +155,7 @@ func TestCreateContainerWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 		assert.Equal(t, "container123", container.ID)
 		assert.Equal(t, "test-container", container.Name)
@@ -172,7 +172,7 @@ func TestCreateContainerWithMock(t *testing.T) {
 		ctx := context.Background()
 		image := docker.Image{Name: "nonexistent:latest"}
 
-		_, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", 10, 10, 100*time.Millisecond)
+		_, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create container")
 	})
@@ -195,7 +195,7 @@ func TestCreateContainerWithMock(t *testing.T) {
 		volumes := []string{"/host:/container"}
 		workingDir := "/custom"
 
-		_, err := c.CreateContainer(ctx, "test-name", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		_, err := c.CreateContainer(ctx, "test-name", image, args, env, volumes, workingDir, "some-network", 10, 10, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		assert.Equal(t, "alpine:latest", capturedOptions.Config.Image)

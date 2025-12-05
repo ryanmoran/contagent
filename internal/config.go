@@ -36,6 +36,7 @@ type Config struct {
 	Env            Environment
 	Volumes        []string
 	DockerfilePath string
+	Network        string
 }
 
 type GitUserConfig struct {
@@ -67,14 +68,18 @@ func ParseConfig(args []string, environment []string) Config {
 		}
 	}
 
-	var additionalEnv stringSlice
-	var volumes stringSlice
-	var dockerfilePath string
+	var (
+		additionalEnv  stringSlice
+		volumes        stringSlice
+		dockerfilePath string
+		network        string
+	)
 
 	fs := flag.NewFlagSet("contagent", flag.ContinueOnError)
 	fs.Var(&additionalEnv, "env", "environment variable")
 	fs.Var(&volumes, "volume", "volume mount")
 	fs.StringVar(&dockerfilePath, "dockerfile", "", "Dockerfile path")
+	fs.StringVar(&network, "network", "default", "	Connect to a container network")
 
 	// Ignore errors since we want to capture remaining args
 	_ = fs.Parse(args)
@@ -123,5 +128,6 @@ func ParseConfig(args []string, environment []string) Config {
 		Args:    Command(programArgs),
 		Env:     Environment(env),
 		Volumes: allVolumes,
+		Network: network,
 	}
 }
