@@ -107,13 +107,8 @@ func (s Server) Port() int {
 	return s.port
 }
 
-// Close stops the Git HTTP server and closes the TCP listener.
+// Close stops the Git HTTP server which closes the TCP listener.
 // Returns an error if the server or listener cannot be closed cleanly.
 func (s Server) Close() error {
-	err := s.server.Close()
-	if err != nil {
-		return err
-	}
-
-	return s.listener.Close()
+	return s.server.Close()
 }
