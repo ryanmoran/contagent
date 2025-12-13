@@ -27,16 +27,14 @@ func main() {
 }
 
 func run(args, env []string) error {
-	cleanupMgr := internal.NewCleanupManager()
-	defer cleanupMgr.Execute()
+	cleanup := internal.NewCleanupManager()
+	defer cleanup.Execute()
 
 	config := internal.ParseConfig(args[1:], env)
 
-	// Create context with cancellation for proper goroutine cleanup
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	cleanup.Add("cancel-context", func() error { cancel(); return nil })
 
-	// Handle signals to cancel context and cleanup
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -57,13 +55,13 @@ func run(args, env []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to start git server in directory %q: %w", workingDirectory, err)
 	}
-	cleanupMgr.Add("git-server", remote.Close)
+	cleanup.Add("git-server", remote.Close)
 
 	client, err := docker.NewDefaultClient()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w\nMake sure Docker is installed and running (try 'docker ps')", err)
 	}
-	cleanupMgr.Add("docker-client", func() error {
+	cleanup.Add("docker-client", func() error {
 		client.Close()
 		return nil
 	})
@@ -89,7 +87,7 @@ func run(args, env []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create container %q from image %q: %w", session.ID(), image.Name, err)
 	}
-	cleanupMgr.Add("container", func() error {
+	cleanup.Add("container", func() error {
 		return container.ForceRemove(ctx)
 	})
 
@@ -104,7 +102,7 @@ func run(args, env []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create git archive from %q on branch %q: %w", workingDirectory, session.Branch(), err)
 	}
-	cleanupMgr.Add("archive", archive.Close)
+	cleanup.Add("archive", archive.Close)
 
 	err = container.CopyTo(ctx, archive, "/")
 	if err != nil {
