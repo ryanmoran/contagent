@@ -30,7 +30,10 @@ func run(args, env []string) error {
 	cleanup := internal.NewCleanupManager()
 	defer cleanup.Execute()
 
-	config := internal.ParseConfig(args[1:], env)
+	config, err := internal.ParseConfig(args[1:], env)
+	if err != nil {
+		return fmt.Errorf("failed to parse configuration: %w", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cleanup.Add("cancel-context", func() error { cancel(); return nil })
@@ -65,6 +68,15 @@ func run(args, env []string) error {
 		client.Close()
 		return nil
 	})
+
+	// Validate that Dockerfile path is provided
+	if config.DockerfilePath == "" {
+		return fmt.Errorf("dockerfile path is required but not specified\n" +
+			"Specify it using:\n" +
+			"  - CLI flag: --dockerfile ./Dockerfile\n" +
+			"  - Config file: Add 'dockerfile: ./Dockerfile' to .contagent.yaml\n" +
+			"See .contagent.example.yaml for more details")
+	}
 
 	image, err := client.BuildImage(ctx, config.DockerfilePath, config.ImageName, w)
 	if err != nil {

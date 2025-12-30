@@ -106,31 +106,180 @@ Host Machine                          Container (contagent-1234)
 
 ## Configuration
 
+`contagent` supports flexible configuration through multiple sources, allowing you to customize behavior at different levels.
+
+### Configuration Resolution Order
+
+Configuration is merged in the following order (later sources override earlier ones):
+
+1. **Hardcoded defaults**
+2. **Global config** (`~/.config/contagent/config.yaml`)
+3. **Project config** (`.contagent.yaml` in project root)
+4. **CLI flags** (final override)
+
+### Configuration Files
+
+Configuration files use YAML format and support all available settings.
+
+#### Project Configuration
+
+Create a `.contagent.yaml` file in your project root to set project-specific defaults:
+
+```yaml
+# Basic container settings
+image: contagent:latest
+working_dir: /app
+dockerfile: ./Dockerfile
+network: default
+stop_timeout: 10
+tty_retries: 10
+retry_delay: 10ms
+
+# Git configuration
+git:
+  user:
+    name: Contagent
+    email: contagent@example.com
+
+# Environment variables
+# Supports variable expansion using $VAR or ${VAR} syntax
+env:
+  MY_PROJECT_VAR: some_value
+  MY_PATH: $HOME/bin
+  USER_DIR: ${HOME}/${USER}
+
+# Volume mounts (HOST_PATH:CONTAINER_PATH)
+# Supports variable expansion
+volumes:
+  - $HOME/.cache:/root/.cache
+  - ./data:/data
+```
+
+See [.contagent.example.yaml](./.contagent.example.yaml) for a complete example with all available options.
+
+#### Global Configuration
+
+Create `~/.config/contagent/config.yaml` to set user-level defaults that apply across all projects:
+
+```yaml
+git:
+  user:
+    name: Your Name
+    email: your.email@example.com
+
+env:
+  EDITOR: vim
+```
+
 ### Command-Line Flags
 
-- `--env KEY=VALUE`: Add environment variable to container (can be used multiple times)
-- `--volume HOST:CONTAINER`: Mount host directory into container (can be used multiple times)
+CLI flags override all configuration files:
+
+#### Container Configuration
+- `--image NAME`: Container image name
+- `--dockerfile PATH`: Path to Dockerfile for building image
+- `--working-dir PATH`: Working directory inside container
+- `--network NAME`: Docker network to use
+- `--stop-timeout SECONDS`: Container stop timeout
+
+#### TTY Configuration
+- `--tty-retries COUNT`: Number of TTY resize retry attempts
+- `--retry-delay DURATION`: Delay between retries (e.g., "10ms", "100ms")
+
+#### Git Configuration
+- `--git-user-name NAME`: Git user name for commits
+- `--git-user-email EMAIL`: Git user email for commits
+
+#### Runtime Configuration
+- `--env KEY=VALUE`: Add environment variable (can be used multiple times)
+- `--volume HOST:CONTAINER`: Mount volume (can be used multiple times)
+
+Example:
+
+```bash
+contagent --env MY_VAR=value --volume /local:/remote --image custom:latest /bin/bash
+```
 
 ### Environment Variables
+
+#### Variable Expansion
+
+Both `env` and `volumes` sections in configuration files support environment variable expansion:
+
+```yaml
+env:
+  # Simple expansion
+  HOME_PATH: $HOME
+  
+  # Braced expansion
+  USER_DIR: ${HOME}/${USER}
+  
+  # Use in volumes
+volumes:
+  - $HOME/.ssh:/root/.ssh
+  - ${PWD}/data:/data
+```
+
+#### Automatically Passed Variables
 
 The following environment variables are automatically passed through to the container:
 
 - `TERM`: Terminal type (defaults to `xterm-256color`)
 - `COLORTERM`: Color support (defaults to `truecolor`)
-- `ANTHROPIC_API_KEY`: API key for AI agent
-- `SSH_AUTH_SOCK`: SSH agent socket (automatically configured)
+- `ANTHROPIC_API_KEY`: API key for AI agents
+- `SSH_AUTH_SOCK`: SSH agent socket (set to `/run/host-services/ssh-auth.sock`)
 
-### Default Volume Mounts
+### Volume Mounts
+
+#### Automatic Mounts
+
+These volumes are always mounted automatically:
 
 - `/var/run/docker.sock:/var/run/docker.sock`: Docker socket for Docker-in-Docker
 - `/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock`: SSH agent access
 
-### Container Settings
+#### Custom Mounts
 
-- **Image Name**: `contagent:latest`
-- **Working Directory**: `/app`
-- **Stop Timeout**: 10 seconds
-- **TTY Resize Retries**: 10 attempts with exponential backoff (10ms, 20ms, 30ms, ...)
+Add custom mounts via configuration files or CLI flags:
+
+**Via config file:**
+
+```yaml
+volumes:
+  - ./data:/data
+  - $HOME/.cache:/root/.cache
+```
+
+**Via CLI:**
+
+```bash
+contagent --volume ./data:/data --volume $HOME/.cache:/root/.cache /bin/bash
+```
+
+### Default Values
+
+If no configuration is provided, these defaults are used:
+
+| Setting | Default Value |
+|---------|---------------|
+| `image` | `contagent:latest` |
+| `working_dir` | `/app` |
+| `network` | `default` |
+| `stop_timeout` | `10` seconds |
+| `tty_retries` | `10` |
+| `retry_delay` | `10ms` |
+| `git.user.name` | `Contagent` |
+| `git.user.email` | `contagent@example.com` |
+
+### Configuration Priority Example
+
+Given:
+
+1. Global config sets `git.user.name: "Alice"`
+2. Project config sets `git.user.name: "Bob"` and `image: "myimage:latest"`
+3. CLI flag `--git-user-name Charlie`
+
+Result: `git.user.name` will be "Charlie" and `image` will be "myimage:latest"
 
 ## Development
 

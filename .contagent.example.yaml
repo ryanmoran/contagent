@@ -1,0 +1,83 @@
+# Example contagent configuration file
+#
+# This file demonstrates all available configuration options for contagent.
+# Place this file in your project root as .contagent.yaml to customize
+# container behavior for your project.
+#
+# Configuration resolution order:
+#   1. Hardcoded defaults
+#   2. Global config (~/.config/contagent/config.yaml)
+#   3. Project config (.contagent.yaml) - this file
+#   4. CLI flags (final override)
+
+# Image name for the container
+# Default: contagent:latest
+image: contagent:latest
+
+# Working directory inside the container
+# Default: /app
+working_dir: /app
+
+# Path to Dockerfile for building the container image
+# Default: (none, must be specified via CLI or config)
+# dockerfile: ./Dockerfile
+
+# Docker network to use for the container
+# Default: default
+network: default
+
+# Container stop timeout in seconds
+# Default: 10
+stop_timeout: 10
+
+# Number of TTY resize retry attempts
+# Default: 10
+tty_retries: 10
+
+# Delay between TTY resize retries
+# Accepts duration strings like "10ms", "100ms", "1s"
+# Default: 10ms
+retry_delay: 10ms
+
+# Git configuration
+git:
+  user:
+    # Git user name for commits made in the container
+    # Default: Contagent
+    name: Contagent
+    # Git user email for commits made in the container
+    # Default: contagent@example.com
+    email: contagent@example.com
+
+# Environment variables to pass to the container
+# These are merged with CLI --env flags (CLI flags take precedence)
+# Supports variable expansion using $VAR or ${VAR} syntax
+env:
+  # Example: Set a custom variable
+  # MY_PROJECT_VAR: some_value
+  
+  # Example: Reference host environment variables
+  # MY_PATH: $HOME/bin
+  # USER_DIR: ${HOME}/${USER}
+
+# Volume mounts for the container
+# Format: HOST_PATH:CONTAINER_PATH
+# These are appended to CLI --volume flags
+# Supports variable expansion using $VAR or ${VAR} syntax
+volumes:
+  # Example: Mount a local cache directory
+  # - $HOME/.cache:/root/.cache
+  
+  # Example: Mount additional project directories
+  # - ./data:/data
+  # - ./config:/config
+
+# Note: The following are always automatically mounted:
+#   - /var/run/docker.sock:/var/run/docker.sock (Docker socket)
+#   - /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock (SSH agent)
+#
+# The following environment variables are always passed through:
+#   - TERM (defaults to xterm-256color)
+#   - COLORTERM (defaults to truecolor)
+#   - ANTHROPIC_API_KEY
+#   - SSH_AUTH_SOCK (set to /run/host-services/ssh-auth.sock)

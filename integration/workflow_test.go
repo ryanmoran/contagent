@@ -271,5 +271,24 @@ func TestWorkflow(t *testing.T) {
 			require.ErrorContains(t, err, "exit status 1")
 			require.Contains(t, string(output), "not a git repository")
 		})
+
+		t.Run("when dockerfile is not specified", func(t *testing.T) {
+			identifiers := setup(t)
+
+			cmd := exec.Command(settings.Path,
+				"bash", "-c", "echo test",
+			)
+			cmd.Dir = identifiers.RepositoryPath
+			cmd.Env = append(os.Environ(),
+				"TERM=xterm-256color",
+				"COLORTERM=truecolor",
+				"ANTHROPIC_API_KEY=",
+			)
+			output, err := cmd.CombinedOutput()
+			require.ErrorContains(t, err, "exit status 1")
+			require.Contains(t, string(output), "dockerfile path is required")
+			require.Contains(t, string(output), "--dockerfile")
+			require.Contains(t, string(output), ".contagent.yaml")
+		})
 	})
 }

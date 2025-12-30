@@ -1,0 +1,17 @@
+image: test-image:v1
+working_dir: /test
+dockerfile: Dockerfile.test
+network: test-network
+stop_timeout: 20
+tty_retries: 5
+retry_delay: 100ms
+git:
+  user:
+    name: Test User
+    email: test@example.com
+env:
+  FOO: bar
+  BAZ: qux
+volumes:
+  - /host:/container
+  - /data:/data
