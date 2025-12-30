@@ -1,0 +1,3 @@
+image: test
+  invalid: [unclosed bracket
+network: "unterminated string

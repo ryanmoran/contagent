@@ -51,7 +51,7 @@ func (c Client) Close() {
 func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName internal.ImageName, w internal.Writer) (Image, error) {
 	dockerfile, err := os.ReadFile(dockerfilePath)
 	if err != nil {
-		return Image{}, fmt.Errorf("failed to read Dockerfile at %q: %w\nCheck that the file exists and is readable", dockerfilePath, err)
+		return Image{}, fmt.Errorf("failed to read Dockerfile at %q: %w\nEnsure the file exists and is readable", dockerfilePath, err)
 	}
 
 	pr, pw := io.Pipe()

@@ -19,7 +19,8 @@ func TestConfig(t *testing.T) {
 				"OTHER_KEY=other-value",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-command", "--some-option"}), config.Args)
 			require.Equal(t, internal.Environment([]string{
 				"TERM=some-term",
@@ -38,16 +39,17 @@ func TestConfig(t *testing.T) {
 				"ANTHROPIC_API_KEY=some-api-key",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program", "--arg"}), config.Args)
-			require.Equal(t, internal.Environment([]string{
+			require.ElementsMatch(t, []string{
 				"TERM=some-term",
 				"COLORTERM=some-color-term",
 				"ANTHROPIC_API_KEY=some-api-key",
 				"SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock",
 				"VAR1=value1",
 				"VAR2=value2",
-			}), config.Env)
+			}, config.Env)
 		})
 
 		t.Run("with --volume flags", func(t *testing.T) {
@@ -56,7 +58,8 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program"}), config.Args)
 			require.Equal(t, []string{
 				"/var/run/docker.sock:/var/run/docker.sock",
@@ -75,7 +78,8 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program"}), config.Args)
 			require.Equal(t, []string{
 				"/var/run/docker.sock:/var/run/docker.sock",
@@ -97,21 +101,50 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program", "--arg"}), config.Args)
-			require.Equal(t, internal.Environment([]string{
+			require.ElementsMatch(t, []string{
 				"TERM=some-term",
 				"COLORTERM=truecolor",
 				"ANTHROPIC_API_KEY=",
 				"SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock",
 				"VAR1=value1",
 				"VAR2=value2",
-			}), config.Env)
+			}, config.Env)
 			require.Equal(t, []string{
 				"/var/run/docker.sock:/var/run/docker.sock",
 				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"/host/path:/container/path",
 			}, config.Volumes)
+		})
+
+		t.Run("returns error when config loading fails with invalid retry delay", func(t *testing.T) {
+			args := []string{
+				"--retry-delay", "not-a-duration",
+				"some-program",
+			}
+			env := []string{
+				"TERM=some-term",
+			}
+
+			config, err := internal.ParseConfig(args, env)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "time: invalid duration")
+			require.Equal(t, internal.Config{}, config)
+		})
+
+		t.Run("returns error when global config file is set but does not exist", func(t *testing.T) {
+			args := []string{"some-program"}
+			env := []string{
+				"CONTAGENT_GLOBAL_CONFIG_FILE=/nonexistent/config.yaml",
+				"TERM=some-term",
+			}
+
+			config, err := internal.ParseConfig(args, env)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "file does not exist")
+			require.Equal(t, internal.Config{}, config)
 		})
 
 		t.Run("when given a --dockerfile flag", func(t *testing.T) {
@@ -123,7 +156,8 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, "/some/path/to/a/Dockerfile", config.DockerfilePath)
 		})
 
@@ -136,7 +170,8 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env)
+			require.NoError(t, err)
 			require.Equal(t, "some-network", config.Network)
 		})
 	})
