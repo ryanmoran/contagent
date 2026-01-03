@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -181,5 +183,136 @@ func TestExpandEnv(t *testing.T) {
 		// Verify result has expanded values
 		require.Equal(t, "/home/user", result.Env["VAR"])
 		require.Equal(t, "/home/user/data:/data", result.Volumes[0])
+	})
+}
+
+func TestExpandHome(t *testing.T) {
+	t.Run("ExpandsHomeDirectory", func(t *testing.T) {
+		result := expandHome("~/config")
+		
+		// Should expand to actual home directory
+		home, err := os.UserHomeDir()
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(home, "config"), result)
+	})
+
+	t.Run("ExpandsHomeDirWithSubpath", func(t *testing.T) {
+		result := expandHome("~/projects/myapp")
+		
+		home, err := os.UserHomeDir()
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(home, "projects/myapp"), result)
+	})
+
+	t.Run("DoesNotExpandTildeNotAtStart", func(t *testing.T) {
+		result := expandHome("/path/to/~/file")
+		
+		require.Equal(t, "/path/to/~/file", result)
+	})
+
+	t.Run("DoesNotExpandTildeWithoutSlash", func(t *testing.T) {
+		result := expandHome("~file")
+		
+		require.Equal(t, "~file", result)
+	})
+
+	t.Run("HandlesRootPath", func(t *testing.T) {
+		result := expandHome("/absolute/path")
+		
+		require.Equal(t, "/absolute/path", result)
+	})
+
+	t.Run("HandlesEmptyPath", func(t *testing.T) {
+		result := expandHome("")
+		
+		require.Equal(t, "", result)
+	})
+}
+
+func TestExpandEnvWithHomeDirectory(t *testing.T) {
+	// Get actual home directory for test assertions
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	t.Run("ExpandsWorkingDir", func(t *testing.T) {
+		cfg := Config{
+			WorkingDir: "~/workspace",
+		}
+		environment := []string{}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, filepath.Join(home, "workspace"), result.WorkingDir)
+	})
+
+	t.Run("ExpandsDockerfile", func(t *testing.T) {
+		cfg := Config{
+			Dockerfile: "~/dockerfiles/Dockerfile.dev",
+		}
+		environment := []string{}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, filepath.Join(home, "dockerfiles/Dockerfile.dev"), result.Dockerfile)
+	})
+
+	t.Run("ExpandsHomeInVolumes", func(t *testing.T) {
+		cfg := Config{
+			Volumes: []string{
+				"~/data:/data",
+				"~/cache:/cache",
+			},
+		}
+		environment := []string{}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, filepath.Join(home, "data")+":/data", result.Volumes[0])
+		require.Equal(t, filepath.Join(home, "cache")+":/cache", result.Volumes[1])
+	})
+
+	t.Run("ExpandsHomeAfterEnvVar", func(t *testing.T) {
+		cfg := Config{
+			Volumes: []string{
+				"$HOME/data:/data",
+			},
+		}
+		environment := []string{"HOME=" + home}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, filepath.Join(home, "data")+":/data", result.Volumes[0])
+	})
+
+	t.Run("DoesNotExpandNonHomePrefix", func(t *testing.T) {
+		cfg := Config{
+			WorkingDir: "/workspace",
+			Dockerfile: "./Dockerfile",
+		}
+		environment := []string{}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, "/workspace", result.WorkingDir)
+		require.Equal(t, "./Dockerfile", result.Dockerfile)
+	})
+
+	t.Run("ExpandsMultiplePathsWithHome", func(t *testing.T) {
+		cfg := Config{
+			WorkingDir: "~/app",
+			Dockerfile: "~/docker/Dockerfile",
+			Volumes: []string{
+				"~/data:/data",
+				"/absolute:/absolute",
+			},
+		}
+		environment := []string{}
+
+		result := ExpandEnv(cfg, environment)
+
+		require.Equal(t, filepath.Join(home, "app"), result.WorkingDir)
+		require.Equal(t, filepath.Join(home, "docker/Dockerfile"), result.Dockerfile)
+		require.Equal(t, filepath.Join(home, "data")+":/data", result.Volumes[0])
+		require.Equal(t, "/absolute:/absolute", result.Volumes[1])
 	})
 }
