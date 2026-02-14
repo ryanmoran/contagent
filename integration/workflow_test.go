@@ -33,11 +33,21 @@ func TestWorkflow(t *testing.T) {
 		require.NoError(t, err)
 		defer file.Close()
 
-		fmt.Fprintln(file, "FROM ubuntu:25.10")
+		fmt.Fprintln(file, "FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace")
 
 		cmd := exec.Command("git", "init")
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(output))
+
+		cmd = exec.Command("git", "config", "user.email", "test@test.com")
+		cmd.Dir = dir
+		output, err = cmd.CombinedOutput()
+		require.NoError(t, err, string(output))
+
+		cmd = exec.Command("git", "config", "user.name", "Test")
+		cmd.Dir = dir
+		output, err = cmd.CombinedOutput()
 		require.NoError(t, err, string(output))
 
 		cmd = exec.Command("git", "add", "-A", ".")
@@ -71,7 +81,7 @@ func TestWorkflow(t *testing.T) {
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "echo integration_test")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -89,7 +99,7 @@ func TestWorkflow(t *testing.T) {
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "cd /app && git rev-parse --is-inside-work-tree")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -107,7 +117,7 @@ func TestWorkflow(t *testing.T) {
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "pwd | grep -q /app")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -125,7 +135,7 @@ func TestWorkflow(t *testing.T) {
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "test \"$TERM\" = 'screen-256color'")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=screen-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=test-key-123",
@@ -143,7 +153,7 @@ func TestWorkflow(t *testing.T) {
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "exit 42")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -176,7 +186,7 @@ func TestWorkflow(t *testing.T) {
 			"bash", "-c", "cat /mnt/test/test.txt | grep -q 'integration test'",
 		)
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -196,7 +206,7 @@ func TestWorkflow(t *testing.T) {
 			"bash", "-c", "test \"$CUSTOM_VAR\" = 'test123'",
 		)
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -220,11 +230,21 @@ func TestWorkflow(t *testing.T) {
 
 		ctx := t.Context()
 
+		// Snapshot container IDs that exist before the test runs so we can
+		// ignore them when checking cleanup (e.g. the host contagent container).
+		before, err := cli.ContainerList(ctx, client.ContainerListOptions{})
+		require.NoError(t, err)
+
+		preExisting := make(map[string]bool)
+		for _, item := range before.Items {
+			preExisting[item.ID] = true
+		}
+
 		cmd := exec.Command(settings.Path,
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "exit 42")
 		cmd.Dir = identifiers.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -239,6 +259,9 @@ func TestWorkflow(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, item := range result.Items {
+			if preExisting[item.ID] {
+				continue
+			}
 			for _, name := range item.Names {
 				require.NotContains(t, name, "contagent")
 			}
@@ -262,7 +285,7 @@ func TestWorkflow(t *testing.T) {
 				"bash", "-c", "echo test",
 			)
 			cmd.Dir = tmpDir
-			cmd.Env = append(os.Environ(),
+			cmd.Env = append(cleanEnv(t),
 				"TERM=xterm-256color",
 				"COLORTERM=truecolor",
 				"ANTHROPIC_API_KEY=",
@@ -279,7 +302,7 @@ func TestWorkflow(t *testing.T) {
 				"bash", "-c", "echo test",
 			)
 			cmd.Dir = identifiers.RepositoryPath
-			cmd.Env = append(os.Environ(),
+			cmd.Env = append(cleanEnv(t),
 				"TERM=xterm-256color",
 				"COLORTERM=truecolor",
 				"ANTHROPIC_API_KEY=",

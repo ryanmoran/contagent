@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ryanmoran/contagent/internal/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +30,7 @@ func TestDockerErrorCases(t *testing.T) {
 
 			_, err := client.BuildImage(ctx, "/nonexistent/path/Dockerfile", "test:latest", writer)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to read Dockerfile")
+			require.Contains(t, err.Error(), "failed to read Dockerfile")
 		})
 
 		t.Run("Dockerfile in non-existent directory", func(t *testing.T) {
@@ -39,7 +39,7 @@ func TestDockerErrorCases(t *testing.T) {
 
 			_, err := client.BuildImage(ctx, "/path/that/does/not/exist/Dockerfile", "test:latest", writer)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to read Dockerfile")
+			require.Contains(t, err.Error(), "failed to read Dockerfile")
 		})
 
 		t.Run("empty Dockerfile", func(t *testing.T) {
@@ -86,8 +86,6 @@ func TestDockerErrorCases(t *testing.T) {
 			writer := newMockWriter()
 			ctx := context.Background()
 
-			// Docker allows most image names, so we need a truly invalid one
-			// Using capital letters and special characters
 			_, err = client.BuildImage(ctx, dockerfilePath, "INVALID_IMAGE_NAME:@#$", writer)
 			require.Error(t, err)
 		})
@@ -110,7 +108,7 @@ func TestDockerErrorCases(t *testing.T) {
 
 			_, err = client.BuildImage(ctx, dockerfilePath, "test:latest", writer)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to read Dockerfile")
+			require.Contains(t, err.Error(), "failed to read Dockerfile")
 		})
 
 		t.Run("cancelled context during build", func(t *testing.T) {
@@ -118,7 +116,6 @@ func TestDockerErrorCases(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(tmpDir)
 
-			// Create a Dockerfile with a long-running operation
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 			err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\nRUN sleep 30\n"), 0644)
 			require.NoError(t, err)
@@ -129,7 +126,7 @@ func TestDockerErrorCases(t *testing.T) {
 
 			_, err = client.BuildImage(ctx, dockerfilePath, "test-cancel:latest", writer)
 			require.Error(t, err)
-			assert.True(t, err == context.DeadlineExceeded || err == context.Canceled ||
+			require.True(t, err == context.DeadlineExceeded || err == context.Canceled ||
 				(err != nil && (err.Error() != "")),
 				"expected context error or build error")
 		})
@@ -145,82 +142,114 @@ func TestDockerErrorCases(t *testing.T) {
 		t.Run("non-existent image", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "nonexistent-image-xyz-abc-12345:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			_, err := client.CreateContainer(ctx, "test-noimage", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			_, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-noimage",
+				Image:       runtime.Image{Name: "nonexistent-image-xyz-abc-12345:latest"},
+				Args:        []string{"echo", "test"},
+				Env:         []string{},
+				Volumes:     []string{},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to create container")
+			require.Contains(t, err.Error(), "failed to create container")
 		})
 
 		t.Run("empty image name", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: ""}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			_, err := client.CreateContainer(ctx, "test-emptyimage", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			_, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-emptyimage",
+				Image:       runtime.Image{Name: ""},
+				Args:        []string{"echo", "test"},
+				Env:         []string{},
+				Volumes:     []string{},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to create container")
+			require.Contains(t, err.Error(), "failed to create container")
 		})
 
 		t.Run("invalid volume mount", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			// Invalid volume syntax (missing destination)
-			volumes := []string{"/nonexistent/path"}
-			workingDir := "/app"
-
-			_, err := client.CreateContainer(ctx, "test-badvol", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
-			// Docker may accept this but behavior is undefined
-			// We're mainly testing that the error is handled properly
+			_, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-badvol",
+				Image:       runtime.Image{Name: "alpine:latest"},
+				Args:        []string{"echo", "test"},
+				Env:         []string{},
+				Volumes:     []string{"/nonexistent/path"},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			if err != nil {
-				assert.Contains(t, err.Error(), "failed to create container")
+				require.Contains(t, err.Error(), "failed to create container")
 			}
 		})
 
 		t.Run("cancelled context", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
-			cancel() // Cancel immediately
+			cancel()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			_, err := client.CreateContainer(ctx, "test-cancelled", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			_, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-cancelled",
+				Image:       runtime.Image{Name: "alpine:latest"},
+				Args:        []string{"echo", "test"},
+				Env:         []string{},
+				Volumes:     []string{},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			require.Error(t, err)
 		})
 
 		t.Run("duplicate container name", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"sleep", "10"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container1, err := client.CreateContainer(ctx, "test-duplicate", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container1, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-duplicate",
+				Image:       runtime.Image{Name: "alpine:latest"},
+				Args:        []string{"sleep", "10"},
+				Env:         []string{},
+				Volumes:     []string{},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			require.NoError(t, err)
 			defer func() {
 				_ = container1.ForceRemove(ctx)
 			}()
 
-			// Try to create another container with the same name
-			_, err = client.CreateContainer(ctx, "test-duplicate", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			_, err = client.CreateContainer(ctx, runtime.CreateContainerOptions{
+				SessionID:   "test-duplicate",
+				Image:       runtime.Image{Name: "alpine:latest"},
+				Args:        []string{"sleep", "10"},
+				Env:         []string{},
+				Volumes:     []string{},
+				WorkingDir:  "/app",
+				Network:     "default",
+				StopTimeout: 10,
+				TTYRetries:  10,
+				RetryDelay:  100 * time.Millisecond,
+			})
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to create container")
+			require.Contains(t, err.Error(), "failed to create container")
 		})
 	})
 
@@ -234,77 +263,50 @@ func TestDockerErrorCases(t *testing.T) {
 		t.Run("start non-existent container", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-start-noexist", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-start-noexist", []string{"echo", "test"}))
 			require.NoError(t, err)
 
-			// Remove the container before starting
 			err = container.ForceRemove(ctx)
 			require.NoError(t, err)
 
-			// Try to start the removed container
 			err = container.Start(ctx)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to start container")
+			require.Contains(t, err.Error(), "failed to start container")
 		})
 
 		t.Run("copy to non-existent container", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-copy-noexist", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-copy-noexist", []string{"echo", "test"}))
 			require.NoError(t, err)
 
 			err = container.ForceRemove(ctx)
 			require.NoError(t, err)
 
-			// Try to copy to the removed container
 			err = container.CopyTo(ctx, nil, "/tmp")
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to copy to container")
+			require.Contains(t, err.Error(), "failed to copy content to container")
 		})
 
 		t.Run("remove already removed container", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-double-remove", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-double-remove", []string{"echo", "test"}))
 			require.NoError(t, err)
 
-			err = container.Remove(ctx)
+			dc := container.(docker.Container)
+			err = dc.Remove(ctx)
 			require.NoError(t, err)
 
-			// Try to remove again
-			err = container.Remove(ctx)
+			err = dc.Remove(ctx)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "failed to remove container")
+			require.Contains(t, err.Error(), "failed to remove container")
 		})
 
 		t.Run("attach to removed container", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-attach-removed", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-attach-removed", []string{"echo", "test"}))
 			require.NoError(t, err)
 
 			err = container.ForceRemove(ctx)
@@ -318,13 +320,7 @@ func TestDockerErrorCases(t *testing.T) {
 		t.Run("wait on removed container", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"echo", "test"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-wait-removed", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-wait-removed", []string{"echo", "test"}))
 			require.NoError(t, err)
 
 			err = container.ForceRemove(ctx)
@@ -338,13 +334,7 @@ func TestDockerErrorCases(t *testing.T) {
 		t.Run("start container with cancelled context", func(t *testing.T) {
 			ctx := context.Background()
 
-			image := docker.Image{Name: "alpine:latest"}
-			args := []string{"sleep", "10"}
-			env := []string{}
-			volumes := []string{}
-			workingDir := "/app"
-
-			container, err := client.CreateContainer(ctx, "test-start-cancel", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+			container, err := client.CreateContainer(ctx, integrationOpts("test-start-cancel", []string{"sleep", "10"}))
 			require.NoError(t, err)
 			defer func() {
 				_ = container.ForceRemove(ctx)
@@ -365,7 +355,7 @@ func TestDockerErrorCases(t *testing.T) {
 				t.Skip("Docker not available:", err)
 			}
 
-			assert.NotPanics(t, func() {
+			require.NotPanics(t, func() {
 				client.Close()
 				client.Close()
 				client.Close()

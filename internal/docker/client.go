@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/ryanmoran/contagent/internal"
+	"github.com/ryanmoran/contagent/internal/runtime"
 )
 
-type Image struct {
-	Name string
-}
+// Compile-time check that Client implements runtime.Runtime.
+var _ runtime.Runtime = Client{}
 
 type Client struct {
 	client DockerClient
@@ -40,18 +39,23 @@ func NewDefaultClient() (Client, error) {
 }
 
 // Close closes the underlying Docker client connection.
-func (c Client) Close() {
-	c.client.Close()
+func (c Client) Close() error {
+	return c.client.Close()
+}
+
+// HostAddress returns the hostname that containers use to reach the host.
+func (c Client) HostAddress() string {
+	return "host.docker.internal"
 }
 
 // BuildImage builds a Docker image from a Dockerfile and tags it with the specified image name.
 // It creates a tar archive containing the Dockerfile, sends it to the Docker daemon, and streams
 // the build output to the provided Writer. Returns an error if the Dockerfile cannot be read,
 // the tar archive cannot be created, the image build fails, or the build output cannot be decoded.
-func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName internal.ImageName, w internal.Writer) (Image, error) {
+func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName internal.ImageName, w internal.Writer) (runtime.Image, error) {
 	dockerfile, err := os.ReadFile(dockerfilePath)
 	if err != nil {
-		return Image{}, fmt.Errorf("failed to read Dockerfile at %q: %w\nEnsure the file exists and is readable", dockerfilePath, err)
+		return runtime.Image{}, fmt.Errorf("failed to read Dockerfile at %q: %w\nEnsure the file exists and is readable", dockerfilePath, err)
 	}
 
 	pr, pw := io.Pipe()
@@ -90,7 +94,7 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 		Remove:     true,
 	})
 	if err != nil {
-		return Image{}, fmt.Errorf("failed to build image %q: %w\nCheck Docker daemon logs for details", imageName, err)
+		return runtime.Image{}, fmt.Errorf("failed to build image %q: %w\nCheck Docker daemon logs for details", imageName, err)
 	}
 	defer response.Body.Close()
 
@@ -98,10 +102,10 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 	select {
 	case err := <-errChan:
 		if err != nil {
-			return Image{}, err
+			return runtime.Image{}, err
 		}
 	case <-ctx.Done():
-		return Image{}, ctx.Err()
+		return runtime.Image{}, ctx.Err()
 	default:
 	}
 
@@ -109,7 +113,7 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 	for decoder.More() {
 		select {
 		case <-ctx.Done():
-			return Image{}, ctx.Err()
+			return runtime.Image{}, ctx.Err()
 		default:
 		}
 
@@ -122,17 +126,17 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 		}
 		err := decoder.Decode(&output)
 		if err != nil {
-			return Image{}, fmt.Errorf("failed to decode build output: %w\nDocker may have returned malformed JSON", err)
+			return runtime.Image{}, fmt.Errorf("failed to decode build output: %w\nDocker may have returned malformed JSON", err)
 		}
 
 		if output.ErrorDetail.Code != 0 {
-			return Image{}, fmt.Errorf("docker build failed: %s\nCheck your Dockerfile syntax and base image availability", output.ErrorDetail.Message)
+			return runtime.Image{}, fmt.Errorf("docker build failed: %s\nCheck your Dockerfile syntax and base image availability", output.ErrorDetail.Message)
 		}
 
 		w.Print(output.Stream)
 	}
 
-	return Image{
+	return runtime.Image{
 		Name: string(imageName),
 	}, nil
 }
@@ -141,46 +145,45 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 // It configures the container with TTY support, stdin attachment, environment variables,
 // working directory, volume mounts, and network settings to allow communication with the host
 // via host.docker.internal. Returns a Container handle or an error if creation fails.
-func (c Client) CreateContainer(ctx context.Context, sessionID internal.SessionID, image Image, args internal.Command, env internal.Environment, volumes []string, workingDir, network string, stopTimeout, ttyRetries int, retryDelay time.Duration) (Container, error) {
+func (c Client) CreateContainer(ctx context.Context, opts runtime.CreateContainerOptions) (runtime.Container, error) {
 	response, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
 		Config: &container.Config{
-			Image:        image.Name,
-			Cmd:          []string(args),
+			Image:        opts.Image.Name,
+			Cmd:          []string(opts.Args),
 			Tty:          true,
 			OpenStdin:    true,
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
-			Env:          []string(env),
-			WorkingDir:   workingDir,
+			Env:          []string(opts.Env),
+			WorkingDir:   opts.WorkingDir,
 		},
 		HostConfig: &container.HostConfig{
 			ExtraHosts: []string{
 				"host.docker.internal:host-gateway",
 			},
-			Binds:       volumes,
-			NetworkMode: container.NetworkMode(network),
+			Binds:       opts.Volumes,
+			NetworkMode: container.NetworkMode(opts.Network),
 		},
-		Name:             string(sessionID),
+		Name:             string(opts.SessionID),
 		NetworkingConfig: nil,
 		Platform:         nil,
 	})
 	if err != nil {
-		return Container{}, fmt.Errorf("failed to create container %q from image %q: %w\nEnsure image exists and container config is valid", sessionID, image.Name, err)
+		return nil, fmt.Errorf("failed to create container %q from image %q: %w\nEnsure image exists and container config is valid", opts.SessionID, opts.Image.Name, err)
 	}
 
 	return Container{
 		ID:          response.ID,
-		Name:        string(sessionID),
+		Name:        string(opts.SessionID),
 		client:      c.client,
-		StopTimeout: stopTimeout,
-		TTYRetries:  ttyRetries,
-		RetryDelay:  retryDelay,
+		StopTimeout: opts.StopTimeout,
+		TTYRetries:  opts.TTYRetries,
+		RetryDelay:  opts.RetryDelay,
 	}, nil
 }
 
 // Ping pings the Docker daemon and returns the API version if successful.
-// This function is marked for removal (TODO: remove).
 func (c Client) Ping(ctx context.Context) (string, error) {
 	ping, err := c.client.Ping(ctx, client.PingOptions{})
 	if err != nil {
@@ -190,7 +193,6 @@ func (c Client) Ping(ctx context.Context) (string, error) {
 }
 
 // ListContainers lists all containers and returns their IDs.
-// This function is marked for removal (TODO: remove).
 func (c Client) ListContainers(ctx context.Context) ([]string, error) {
 	result, err := c.client.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {

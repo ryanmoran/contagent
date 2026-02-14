@@ -15,8 +15,12 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/term"
 	"github.com/ryanmoran/contagent/internal"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"golang.org/x/sync/errgroup"
 )
+
+// Compile-time check that Container implements runtime.Container.
+var _ runtime.Container = Container{}
 
 type Container struct {
 	client DockerClient

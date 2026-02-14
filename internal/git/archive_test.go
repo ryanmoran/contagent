@@ -93,24 +93,23 @@ func TestCreateArchive(t *testing.T) {
 		}
 
 		// Verify expected files are in archive
-		require.True(t, files["app/"], "should contain app/ directory")
-		require.True(t, files["app/.git/"], "should contain app/.git/ directory")
-		require.True(t, files["app/test.txt"], "should contain app/test.txt")
+		require.True(t, files[".git/"], "should contain .git/ directory")
+		require.True(t, files["test.txt"], "should contain test.txt")
 		// Note: subdirectories are not explicitly added unless they contain files
 		// tar will create them automatically when extracting files
-		require.True(t, files["app/subdir/nested.txt"], "should contain app/subdir/nested.txt")
+		require.True(t, files["subdir/nested.txt"], "should contain subdir/nested.txt")
 
 		// Verify file contents
-		content, err := os.ReadFile(filepath.Join(extractDir, "app", "test.txt"))
+		content, err := os.ReadFile(filepath.Join(extractDir, "test.txt"))
 		require.NoError(t, err)
 		require.Equal(t, "test content\n", string(content))
 
-		content, err = os.ReadFile(filepath.Join(extractDir, "app", "subdir", "nested.txt"))
+		content, err = os.ReadFile(filepath.Join(extractDir, "subdir", "nested.txt"))
 		require.NoError(t, err)
 		require.Equal(t, "nested content\n", string(content))
 
 		// Verify git configuration in extracted archive
-		appDir := filepath.Join(extractDir, "app")
+		appDir := extractDir
 
 		// Check remote
 		cmd = exec.Command("git", "remote", "get-url", "origin")
@@ -238,8 +237,8 @@ func TestCreateArchive(t *testing.T) {
 			files[header.Name] = true
 		}
 
-		require.True(t, files["app/regular.txt"], "should contain regular file")
-		require.False(t, files["app/link.txt"], "should not contain symlink")
+		require.True(t, files["regular.txt"], "should contain regular file")
+		require.False(t, files["link.txt"], "should not contain symlink")
 	})
 
 	t.Run("archives from subdirectory of git repo", func(t *testing.T) {
@@ -292,8 +291,8 @@ func TestCreateArchive(t *testing.T) {
 			files[header.Name] = true
 		}
 
-		require.True(t, files["app/root.txt"], "should contain root file")
-		require.True(t, files["app/sub/sub.txt"], "should contain sub file")
+		require.True(t, files["root.txt"], "should contain root file")
+		require.True(t, files["sub/sub.txt"], "should contain sub file")
 	})
 
 	t.Run("handles empty repository", func(t *testing.T) {
@@ -381,11 +380,11 @@ func TestCopyDirectory(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			if !strings.HasPrefix(header.Name, "app/.git/") {
+			if !strings.HasPrefix(header.Name, ".git/") {
 				continue
 			}
 
-			target := filepath.Join(dstPath, strings.TrimPrefix(header.Name, "app/"))
+			target := filepath.Join(dstPath, header.Name)
 			switch header.Typeflag {
 			case tar.TypeDir:
 				require.NoError(t, os.MkdirAll(target, os.FileMode(header.Mode)))
@@ -460,7 +459,7 @@ func TestCopyDirectory(t *testing.T) {
 
 		// Note: git ls-files only returns files, not directories
 		// But we should still have the nested file
-		require.True(t, files["app/a/b/c/d/deep.txt"], "should contain app/a/b/c/d/deep.txt")
+		require.True(t, files["a/b/c/d/deep.txt"], "should contain app/a/b/c/d/deep.txt")
 	})
 
 	t.Run("preserves file permissions", func(t *testing.T) {
@@ -512,12 +511,12 @@ func TestCopyDirectory(t *testing.T) {
 		}
 
 		// Verify executable bit is preserved
-		scriptMode := permissions["app/script.sh"]
+		scriptMode := permissions["script.sh"]
 		require.NotZero(t, scriptMode, "script.sh should have mode set")
 		require.NotZero(t, scriptMode&0111, "script.sh should have executable bit")
 
 		// Verify regular file doesn't have executable bit
-		dataMode := permissions["app/data.txt"]
+		dataMode := permissions["data.txt"]
 		require.NotZero(t, dataMode, "data.txt should have mode set")
 	})
 }
@@ -582,7 +581,7 @@ func TestCopyFile(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			if header.Name == "app/test.txt" {
+			if header.Name == "test.txt" {
 				target := filepath.Join(extractDir, "test.txt")
 				f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 				require.NoError(t, err)
@@ -643,7 +642,7 @@ func TestCopyFile(t *testing.T) {
 				break
 			}
 			require.NoError(t, err)
-			if header.Name == "app/parent/child/file.txt" {
+			if header.Name == "parent/child/file.txt" {
 				found = true
 				break
 			}
@@ -694,13 +693,13 @@ func TestAddDirectoryToArchive(t *testing.T) {
 				break
 			}
 			require.NoError(t, err)
-			if strings.HasPrefix(header.Name, "app/.git/") {
+			if strings.HasPrefix(header.Name, ".git/") {
 				gitFiles = append(gitFiles, header.Name)
 			}
 		}
 
 		require.NotEmpty(t, gitFiles, "should contain .git files")
-		require.Contains(t, fmt.Sprintf("%v", gitFiles), "app/.git/config", "should contain git config")
+		require.Contains(t, fmt.Sprintf("%v", gitFiles), ".git/config", "should contain git config")
 	})
 
 	t.Run("normalizes path separators", func(t *testing.T) {

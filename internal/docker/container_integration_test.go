@@ -11,9 +11,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ryanmoran/contagent/internal"
 	"github.com/ryanmoran/contagent/internal/docker"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
+
+func integrationOpts(sessionID string, args []string) runtime.CreateContainerOptions {
+	return runtime.CreateContainerOptions{
+		SessionID:   internal.SessionID(sessionID),
+		Image:       runtime.Image{Name: "alpine:latest"},
+		Args:        args,
+		Env:         []string{},
+		Volumes:     []string{},
+		WorkingDir:  "/app",
+		Network:     "default",
+		StopTimeout: 10,
+		TTYRetries:  10,
+		RetryDelay:  100 * time.Millisecond,
+	}
+}
 
 // TestContainerStart tests starting a container
 func TestContainerStart(t *testing.T) {
@@ -26,13 +43,7 @@ func TestContainerStart(t *testing.T) {
 	t.Run("starts container successfully", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sleep", "10"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-start", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-start", []string{"sleep", "10"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -45,13 +56,7 @@ func TestContainerStart(t *testing.T) {
 	t.Run("fails to start already removed container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-start-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-start-fail", []string{"echo", "test"}))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -73,35 +78,25 @@ func TestContainerRemove(t *testing.T) {
 	t.Run("removes stopped container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-remove", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-remove", []string{"echo", "test"}))
 		require.NoError(t, err)
 
-		err = container.Remove(ctx)
+		dc := container.(docker.Container)
+		err = dc.Remove(ctx)
 		require.NoError(t, err)
 	})
 
 	t.Run("fails to remove non-existent container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-remove-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-remove-fail", []string{"echo", "test"}))
 		require.NoError(t, err)
 
-		err = container.Remove(ctx)
+		dc := container.(docker.Container)
+		err = dc.Remove(ctx)
 		require.NoError(t, err)
 
-		err = container.Remove(ctx)
+		err = dc.Remove(ctx)
 		require.ErrorContains(t, err, "failed to remove container")
 	})
 }
@@ -117,13 +112,7 @@ func TestContainerForceRemove(t *testing.T) {
 	t.Run("force removes running container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sleep", "60"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-force-remove", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-force-remove", []string{"sleep", "60"}))
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -138,13 +127,7 @@ func TestContainerForceRemove(t *testing.T) {
 	t.Run("force removes stopped container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-force-remove-stopped", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-force-remove-stopped", []string{"echo", "test"}))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -154,13 +137,7 @@ func TestContainerForceRemove(t *testing.T) {
 	t.Run("fails to force remove non-existent container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-force-remove-nonexist", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-force-remove-nonexist", []string{"echo", "test"}))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -182,13 +159,7 @@ func TestContainerCopyTo(t *testing.T) {
 	t.Run("copies tar archive to container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sleep", "10"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-copy", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-copy", []string{"sleep", "10"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -219,13 +190,7 @@ func TestContainerCopyTo(t *testing.T) {
 	t.Run("fails to copy to non-existent container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-copy-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-copy-fail", []string{"echo", "test"}))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -236,19 +201,13 @@ func TestContainerCopyTo(t *testing.T) {
 		tw.Close()
 
 		err = container.CopyTo(ctx, &buf, "/tmp")
-		require.ErrorContains(t, err, "failed to copy to container")
+		require.ErrorContains(t, err, "failed to copy content to container")
 	})
 
 	t.Run("copies empty archive", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sleep", "10"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-copy-empty", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-copy-empty", []string{"sleep", "10"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -275,13 +234,7 @@ func TestContainerWait(t *testing.T) {
 	t.Run("waits for container to exit", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sh", "-c", "sleep 0.5 && exit 0"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-wait", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-wait", []string{"sh", "-c", "sleep 0.5 && exit 0"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -300,13 +253,7 @@ func TestContainerWait(t *testing.T) {
 	t.Run("reports non-zero exit status", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sh", "-c", "exit 42"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-wait-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-wait-fail", []string{"sh", "-c", "exit 42"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -334,13 +281,7 @@ func TestContainerAttach(t *testing.T) {
 	t.Run("fails to attach to non-running container", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-attach-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-attach-fail", []string{"echo", "test"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -366,20 +307,28 @@ func TestContainerStruct(t *testing.T) {
 	t.Run("container has expected fields", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
+		opts := runtime.CreateContainerOptions{
+			SessionID:   "test-struct",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "default",
+			StopTimeout: 5,
+			TTYRetries:  3,
+			RetryDelay:  50 * time.Millisecond,
+		}
 
-		container, err := client.CreateContainer(ctx, "test-struct", image, args, env, volumes, workingDir, 5, 3, 50*time.Millisecond)
+		container, err := client.CreateContainer(ctx, opts)
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
 		}()
 
-		require.NotEmpty(t, container.ID)
-		require.Equal(t, "test-struct", container.Name)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
+		require.Equal(t, "test-struct", dc.Name)
 	})
 }
 
@@ -394,55 +343,46 @@ func TestContainerConfiguration(t *testing.T) {
 	t.Run("creates container with environment variables", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sh", "-c", "echo $TEST_VAR"}
-		env := []string{"TEST_VAR=hello"}
-		volumes := []string{}
-		workingDir := "/app"
+		opts := integrationOpts("test-env", []string{"sh", "-c", "echo $TEST_VAR"})
+		opts.Env = []string{"TEST_VAR=hello"}
 
-		container, err := client.CreateContainer(ctx, "test-env", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, opts)
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
 		}()
 
-		require.NotEmpty(t, container.ID)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
 	})
 
 	t.Run("creates container with custom working directory", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"pwd"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/custom"
+		opts := integrationOpts("test-workdir", []string{"pwd"})
+		opts.WorkingDir = "/custom"
 
-		container, err := client.CreateContainer(ctx, "test-workdir", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, opts)
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
 		}()
 
-		require.NotEmpty(t, container.ID)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
 	})
 
 	t.Run("creates container with multiple args", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sh", "-c", "echo arg1 && echo arg2 && echo arg3"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-args", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-args", []string{"sh", "-c", "echo arg1 && echo arg2 && echo arg3"}))
 		require.NoError(t, err)
 		defer func() {
 			_ = container.ForceRemove(ctx)
 		}()
 
-		require.NotEmpty(t, container.ID)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
 	})
 }
 
@@ -457,13 +397,7 @@ func TestContainerLifecycle(t *testing.T) {
 	t.Run("create, start, wait, remove workflow", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"sh", "-c", "echo 'lifecycle test' && sleep 0.2"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-lifecycle", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, integrationOpts("test-lifecycle", []string{"sh", "-c", "echo 'lifecycle test' && sleep 0.2"}))
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -476,7 +410,8 @@ func TestContainerLifecycle(t *testing.T) {
 		output := writer.String()
 		require.True(t, strings.Contains(output, "Container exited with status: 0") || strings.Contains(output, "Received signal"))
 
-		err = container.Remove(ctx)
+		dc := container.(docker.Container)
+		err = dc.Remove(ctx)
 		require.NoError(t, err)
 	})
 }

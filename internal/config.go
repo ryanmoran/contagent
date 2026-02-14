@@ -2,6 +2,9 @@ package internal
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	goruntime "runtime"
 	"strings"
 	"time"
 
@@ -26,6 +29,7 @@ const (
 )
 
 type Config struct {
+	Runtime     string
 	ImageName   ImageName
 	WorkingDir  string
 	StopTimeout int
@@ -50,22 +54,28 @@ type GitUserConfig struct {
 // and merge configuration from multiple sources (defaults, config files, CLI flags).
 // Returns an error if config loading fails (e.g., invalid config file, bad flags).
 func ParseConfig(args []string, environment []string) (Config, error) {
+	startDir, err := os.Getwd()
+	if err != nil {
+		startDir = "."
+	}
+
 	// Use the new config package to load and parse configuration
-	cfg, programArgs, err := config.Load(args, environment)
+	cfg, programArgs, err := config.Load(args, environment, startDir)
 	if err != nil {
 		return Config{}, err
 	}
 
-	// Build environment variables with defaults and config env
-	env := buildEnvironment(environment, cfg.Env)
+	// Resolve runtime (auto-detect if not explicitly set)
+	rt := resolveRuntime(cfg.Runtime)
 
-	// Build volumes with defaults
-	volumes := append([]string{
-		"/var/run/docker.sock:/var/run/docker.sock",
-		"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
-	}, cfg.Volumes...)
+	// Build environment variables with defaults (runtime-aware)
+	env := buildEnvironment(environment, cfg.Env, rt)
+
+	// Build volumes with defaults (runtime-aware)
+	volumes := buildVolumes(cfg.Volumes, rt)
 
 	return Config{
+		Runtime:        rt,
 		ImageName:      ImageName(cfg.Image),
 		WorkingDir:     cfg.WorkingDir,
 		DockerfilePath: cfg.Dockerfile,
@@ -83,8 +93,40 @@ func ParseConfig(args []string, environment []string) (Config, error) {
 	}, nil
 }
 
-// buildEnvironment constructs the environment variable list with defaults
-func buildEnvironment(environment []string, configEnv map[string]string) []string {
+// resolveRuntime determines the container runtime to use.
+// If explicitly configured, uses that value.
+// Otherwise, auto-detects: on macOS with `container` CLI available, uses "apple";
+// otherwise defaults to "docker".
+func resolveRuntime(configured string) string {
+	if configured != "" {
+		return configured
+	}
+
+	if goruntime.GOOS == "darwin" {
+		if _, err := exec.LookPath("container"); err == nil {
+			return "apple"
+		}
+	}
+
+	return "docker"
+}
+
+// buildVolumes constructs the volume mount list with runtime-aware defaults.
+// Docker gets docker.sock and ssh-auth.sock mounts; Apple gets no default mounts.
+func buildVolumes(configVolumes []string, rt string) []string {
+	switch rt {
+	case "apple":
+		return configVolumes
+	default: // "docker"
+		return append([]string{
+			"/var/run/docker.sock:/var/run/docker.sock",
+			"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
+		}, configVolumes...)
+	}
+}
+
+// buildEnvironment constructs the environment variable list with runtime-aware defaults
+func buildEnvironment(environment []string, configEnv map[string]string, rt string) []string {
 	lookup := make(map[string]string)
 	for _, variable := range environment {
 		key, value, ok := strings.Cut(variable, "=")
@@ -113,8 +155,10 @@ func buildEnvironment(environment []string, configEnv map[string]string) []strin
 	value = lookup["ANTHROPIC_API_KEY"]
 	env = append(env, fmt.Sprintf("ANTHROPIC_API_KEY=%s", value))
 
-	// Set SSH_AUTH_SOCK for SSH agent access in container
-	env = append(env, "SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock")
+	// Set SSH_AUTH_SOCK for Docker runtime only (Apple uses --ssh flag natively)
+	if rt == "docker" {
+		env = append(env, "SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock")
+	}
 
 	// Add environment variables from config file and CLI flags
 	for key, value := range configEnv {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/ryanmoran/contagent/internal/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,8 +52,8 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		image, err := c.BuildImage(ctx, dockerfilePath, "test:latest", writer)
 		require.NoError(t, err)
-		assert.Equal(t, "test:latest", image.Name)
-		assert.Contains(t, writer.String(), "Step")
+		require.Equal(t, "test:latest", image.Name)
+		require.Contains(t, writer.String(), "Step")
 	})
 
 	t.Run("fails when ImageBuild returns error", func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		_, err = c.BuildImage(ctx, dockerfilePath, "test:latest", writer)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to build image")
+		require.Contains(t, err.Error(), "failed to build image")
 	})
 
 	t.Run("fails when build output contains error detail", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		_, err = c.BuildImage(ctx, dockerfilePath, "test:latest", writer)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "dockerfile parse error")
+		require.Contains(t, err.Error(), "dockerfile parse error")
 	})
 
 	t.Run("handles context cancellation", func(t *testing.T) {
@@ -153,12 +153,23 @@ func TestCreateContainerWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-container",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "some-network",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.NoError(t, err)
-		assert.Equal(t, "container123", container.ID)
-		assert.Equal(t, "test-container", container.Name)
+		dc := container.(docker.Container)
+		require.Equal(t, "container123", dc.ID)
+		require.Equal(t, "test-container", dc.Name)
 	})
 
 	t.Run("fails when ContainerCreate returns error", func(t *testing.T) {
@@ -170,11 +181,21 @@ func TestCreateContainerWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "nonexistent:latest"}
 
-		_, err := c.CreateContainer(ctx, "test-container", image, []string{"echo", "test"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		_, err := c.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-container",
+			Image:       runtime.Image{Name: "nonexistent:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "some-network",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create container")
+		require.Contains(t, err.Error(), "failed to create container")
 	})
 
 	t.Run("passes correct configuration to Docker API", func(t *testing.T) {
@@ -189,24 +210,34 @@ func TestCreateContainerWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 		args := []string{"sh", "-c", "echo test"}
 		env := []string{"FOO=bar", "BAZ=qux"}
 		volumes := []string{"/host:/container"}
 		workingDir := "/custom"
 
-		_, err := c.CreateContainer(ctx, "test-name", image, args, env, volumes, workingDir, "some-network", 10, 10, 100*time.Millisecond)
+		_, err := c.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-name",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        args,
+			Env:         env,
+			Volumes:     volumes,
+			WorkingDir:  workingDir,
+			Network:     "some-network",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.NoError(t, err)
 
-		assert.Equal(t, "alpine:latest", capturedOptions.Config.Image)
-		assert.Equal(t, args, capturedOptions.Config.Cmd)
-		assert.Equal(t, env, capturedOptions.Config.Env)
-		assert.Equal(t, workingDir, capturedOptions.Config.WorkingDir)
-		assert.True(t, capturedOptions.Config.Tty)
-		assert.True(t, capturedOptions.Config.OpenStdin)
-		assert.Equal(t, volumes, capturedOptions.HostConfig.Binds)
-		assert.Contains(t, capturedOptions.HostConfig.ExtraHosts, "host.docker.internal:host-gateway")
-		assert.Equal(t, "test-name", capturedOptions.Name)
+		require.Equal(t, "alpine:latest", capturedOptions.Config.Image)
+		require.Equal(t, args, capturedOptions.Config.Cmd)
+		require.Equal(t, env, capturedOptions.Config.Env)
+		require.Equal(t, workingDir, capturedOptions.Config.WorkingDir)
+		require.True(t, capturedOptions.Config.Tty)
+		require.True(t, capturedOptions.Config.OpenStdin)
+		require.Equal(t, volumes, capturedOptions.HostConfig.Binds)
+		require.Contains(t, capturedOptions.HostConfig.ExtraHosts, "host.docker.internal:host-gateway")
+		require.Equal(t, "test-name", capturedOptions.Name)
 	})
 }
 
@@ -222,12 +253,13 @@ func TestClientClose(t *testing.T) {
 		}
 
 		c := docker.NewClient(mock)
-		c.Close()
+		err := c.Close()
 
-		assert.True(t, closeCalled)
+		require.NoError(t, err)
+		require.True(t, closeCalled)
 	})
 
-	t.Run("handles close error gracefully", func(t *testing.T) {
+	t.Run("returns close error", func(t *testing.T) {
 		mock := &mockDockerClient{
 			closeFunc: func() error {
 				return errors.New("close failed")
@@ -235,8 +267,15 @@ func TestClientClose(t *testing.T) {
 		}
 
 		c := docker.NewClient(mock)
-		assert.NotPanics(t, func() {
-			c.Close()
-		})
+		err := c.Close()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "close failed")
 	})
+}
+
+// TestHostAddress tests HostAddress returns correct value
+func TestHostAddress(t *testing.T) {
+	mock := &mockDockerClient{}
+	c := docker.NewClient(mock)
+	require.Equal(t, "host.docker.internal", c.HostAddress())
 }

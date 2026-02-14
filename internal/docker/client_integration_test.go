@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ryanmoran/contagent/internal/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,8 +51,8 @@ func TestBuildImage(t *testing.T) {
 
 		image, err := client.BuildImage(ctx, dockerfilePath, "test-image:latest", writer)
 		require.NoError(t, err)
-		assert.Equal(t, "test-image:latest", image.Name)
-		assert.Contains(t, writer.String(), "Step")
+		require.Equal(t, "test-image:latest", image.Name)
+		require.Contains(t, writer.String(), "Step")
 	})
 
 	t.Run("fails with non-existent Dockerfile", func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestBuildImage(t *testing.T) {
 
 		_, err := client.BuildImage(ctx, "/nonexistent/Dockerfile", "test-image:latest", writer)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to read Dockerfile")
+		require.Contains(t, err.Error(), "failed to read Dockerfile")
 	})
 
 	t.Run("fails with invalid Dockerfile syntax", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestBuildImage(t *testing.T) {
 		require.NoError(t, err)
 
 		output := writer.String()
-		assert.Contains(t, output, "Step")
+		require.Contains(t, output, "Step")
 	})
 }
 
@@ -111,16 +111,22 @@ func TestCreateContainer(t *testing.T) {
 	t.Run("creates container with basic config", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{"TEST=value"}
-		volumes := []string{}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-container", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-container",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{"TEST=value"},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "default",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.NoError(t, err)
-		assert.NotEmpty(t, container.ID)
-		assert.Equal(t, "test-container", container.Name)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
+		require.Equal(t, "test-container", dc.Name)
 
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -130,15 +136,21 @@ func TestCreateContainer(t *testing.T) {
 	t.Run("creates container with volumes", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "alpine:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{"/tmp:/tmp"}
-		workingDir := "/app"
-
-		container, err := client.CreateContainer(ctx, "test-container-vol", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		container, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-container-vol",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{},
+			Volumes:     []string{"/tmp:/tmp"},
+			WorkingDir:  "/app",
+			Network:     "default",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.NoError(t, err)
-		assert.NotEmpty(t, container.ID)
+		dc := container.(docker.Container)
+		require.NotEmpty(t, dc.ID)
 
 		defer func() {
 			_ = container.ForceRemove(ctx)
@@ -148,15 +160,20 @@ func TestCreateContainer(t *testing.T) {
 	t.Run("fails with invalid image", func(t *testing.T) {
 		ctx := context.Background()
 
-		image := docker.Image{Name: "nonexistent-image-12345:latest"}
-		args := []string{"echo", "test"}
-		env := []string{}
-		volumes := []string{}
-		workingDir := "/app"
-
-		_, err := client.CreateContainer(ctx, "test-container-fail", image, args, env, volumes, workingDir, 10, 10, 100*time.Millisecond)
+		_, err := client.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test-container-fail",
+			Image:       runtime.Image{Name: "nonexistent-image-12345:latest"},
+			Args:        []string{"echo", "test"},
+			Env:         []string{},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "default",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create container")
+		require.Contains(t, err.Error(), "failed to create container")
 	})
 }
 
@@ -168,7 +185,7 @@ func TestClientCloseIntegration(t *testing.T) {
 	}
 
 	t.Run("Close doesn't panic", func(t *testing.T) {
-		assert.NotPanics(t, func() {
+		require.NotPanics(t, func() {
 			client.Close()
 		})
 	})
@@ -202,15 +219,15 @@ func TestBuildImageOutputParsing(t *testing.T) {
 		err = json.Unmarshal(data, &parsed)
 		require.NoError(t, err)
 
-		assert.Equal(t, 1, parsed.ErrorDetail.Code)
-		assert.Equal(t, "dockerfile parse error", parsed.ErrorDetail.Message)
+		require.Equal(t, 1, parsed.ErrorDetail.Code)
+		require.Equal(t, "dockerfile parse error", parsed.ErrorDetail.Message)
 	})
 }
 
 // TestImage tests the Image struct
 func TestImage(t *testing.T) {
 	t.Run("creates image with name", func(t *testing.T) {
-		image := docker.Image{Name: "test:latest"}
-		assert.Equal(t, "test:latest", image.Name)
+		image := runtime.Image{Name: "test:latest"}
+		require.Equal(t, "test:latest", image.Name)
 	})
 }
