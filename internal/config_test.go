@@ -9,9 +9,16 @@ import (
 )
 
 func TestConfig(t *testing.T) {
+	// Use an isolated directory so FindProjectConfig won't find
+	// any .contagent.yaml files in ancestor directories.
+	t.Chdir(t.TempDir())
+
 	t.Run("ParseConfig", func(t *testing.T) {
 		t.Run("when given a program", func(t *testing.T) {
-			args := []string{"some-command", "--some-option"}
+			args := []string{
+				"--runtime", "apple",
+				"some-command", "--some-option",
+			}
 			env := []string{
 				"TERM=some-term",
 				"COLORTERM=some-color-term",
@@ -26,13 +33,17 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 				"COLORTERM=some-color-term",
 				"ANTHROPIC_API_KEY=some-api-key",
-				"SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock",
 			}), config.Env)
 			require.Equal(t, "default", config.Network)
 		})
 
 		t.Run("with --env flags", func(t *testing.T) {
-			args := []string{"--env", "VAR1=value1", "--env", "VAR2=value2", "some-program", "--arg"}
+			args := []string{
+				"--runtime", "docker",
+				"--env", "VAR1=value1",
+				"--env", "VAR2=value2",
+				"some-program",
+				"--arg"}
 			env := []string{
 				"TERM=some-term",
 				"COLORTERM=some-color-term",
@@ -53,7 +64,10 @@ func TestConfig(t *testing.T) {
 		})
 
 		t.Run("with --volume flags", func(t *testing.T) {
-			args := []string{"--volume", "/host/path:/container/path", "some-program"}
+			args := []string{
+				"--runtime", "docker",
+				"--volume", "/host/path:/container/path",
+				"some-program"}
 			env := []string{
 				"TERM=some-term",
 			}
@@ -70,6 +84,7 @@ func TestConfig(t *testing.T) {
 
 		t.Run("with multiple --volume flags", func(t *testing.T) {
 			args := []string{
+				"--runtime", "apple",
 				"--volume", "/host/path1:/container/path1",
 				"--volume", "/host/path2:/container/path2",
 				"some-program",
@@ -82,8 +97,6 @@ func TestConfig(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program"}), config.Args)
 			require.Equal(t, []string{
-				"/var/run/docker.sock:/var/run/docker.sock",
-				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"/host/path1:/container/path1",
 				"/host/path2:/container/path2",
 			}, config.Volumes)
@@ -91,6 +104,7 @@ func TestConfig(t *testing.T) {
 
 		t.Run("with mixed --env and --volume flags", func(t *testing.T) {
 			args := []string{
+				"--runtime", "docker",
 				"--env", "VAR1=value1",
 				"--volume", "/host/path:/container/path",
 				"--env", "VAR2=value2",

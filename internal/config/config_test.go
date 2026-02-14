@@ -9,7 +9,7 @@ import (
 
 func TestLoad_WithDefaultsOnly(t *testing.T) {
 	// No CLI args, no environment variables
-	cfg, args, err := Load([]string{}, []string{})
+	cfg, args, err := Load([]string{}, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, args)
 
@@ -39,7 +39,7 @@ func TestLoad_WithCLIFlags(t *testing.T) {
 		"--volume", "/data:/data",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, programArgs)
 
@@ -69,7 +69,7 @@ func TestLoad_WithGitUserFlags(t *testing.T) {
 		"--git-user-email", "alice@example.com",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, programArgs)
 
@@ -84,7 +84,7 @@ func TestLoad_WithNumericFlags(t *testing.T) {
 		"--retry-delay", "50ms",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, programArgs)
 
@@ -105,7 +105,7 @@ func TestLoad_WithEnvironmentVariableExpansion(t *testing.T) {
 		"USER=alice",
 	}
 
-	cfg, programArgs, err := Load(args, environment)
+	cfg, programArgs, err := Load(args, environment, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, programArgs)
 
@@ -123,7 +123,7 @@ func TestLoad_WithInvalidRetryDelay(t *testing.T) {
 		"--retry-delay", "invalid-duration",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "time: invalid duration")
 	require.Equal(t, Config{}, cfg)
@@ -138,7 +138,7 @@ func TestLoad_WithInvalidEnvFormat(t *testing.T) {
 		"--env", "ALSO_VALID=another",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Empty(t, programArgs)
 
@@ -150,7 +150,7 @@ func TestLoad_WithInvalidEnvFormat(t *testing.T) {
 
 func TestLoad_WithEmptyArgs(t *testing.T) {
 	// Verify flag parsing handles empty args without panicking
-	cfg, programArgs, err := Load([]string{}, []string{})
+	cfg, programArgs, err := Load([]string{}, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.Empty(t, programArgs)
@@ -166,7 +166,7 @@ func TestLoad_WithTrailingArgs(t *testing.T) {
 		"echo hello",
 	}
 
-	cfg, programArgs, err := Load(args, []string{})
+	cfg, programArgs, err := Load(args, []string{}, t.TempDir())
 	require.NoError(t, err)
 	require.Equal(t, "myapp:v1", cfg.Image)
 	require.Equal(t, "Dockerfile", cfg.Dockerfile)

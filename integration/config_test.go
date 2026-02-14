@@ -26,7 +26,7 @@ func TestConfigFileLoading(t *testing.T) {
 
 		// Create a simple Dockerfile
 		dockerfilePath := filepath.Join(dir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0644)
 		require.NoError(t, err)
 
 		// Create config file if provided
@@ -37,13 +37,11 @@ func TestConfigFileLoading(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		// Initialize git repository
 		cmd := exec.Command("git", "init")
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, string(output))
 
-		// Configure git user for commits
 		cmd = exec.Command("git", "config", "user.email", "test@example.com")
 		cmd.Dir = dir
 		output, err = cmd.CombinedOutput()
@@ -86,7 +84,7 @@ working_dir: /workspace
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -107,7 +105,7 @@ env:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -137,7 +135,7 @@ volumes:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/config-volume/test.txt")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -158,7 +156,7 @@ env:
 			"--env", "TEST_VAR=from_cli",
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -179,7 +177,7 @@ env:
 			"--env", "CLI_VAR=from_cli",
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -195,7 +193,7 @@ env:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -222,7 +220,7 @@ env:
 
 		// Create Dockerfile in root
 		dockerfilePath := filepath.Join(dir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0644)
 		require.NoError(t, err)
 
 		// Initialize git repository in root
@@ -264,7 +262,7 @@ env:
 			"--dockerfile", dockerfilePath,
 			"bash", "-c", "exit 0")
 		cmd.Dir = dir // Run from git root, not subDir
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -296,7 +294,7 @@ volumes:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/test/test.txt")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -328,7 +326,7 @@ env:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -365,7 +363,7 @@ env:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -388,7 +386,7 @@ git:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",
@@ -426,7 +424,7 @@ volumes:
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/data/data.txt")
 		cmd.Dir = testSetup.RepositoryPath
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(cleanEnv(t),
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
 			"ANTHROPIC_API_KEY=",

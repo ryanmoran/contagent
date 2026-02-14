@@ -93,16 +93,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			return fmt.Errorf("failed to create and checkout branch %q: %w\nBranch may already exist", branch, err)
 		}
 
-		header := &tar.Header{
-			Name:     "app/",
-			Mode:     0755,
-			Typeflag: tar.TypeDir,
-		}
-		if err := tw.WriteHeader(header); err != nil {
-			return fmt.Errorf("failed to create app directory: %w", err)
-		}
-
-		if err := addDirectoryToArchive(tw, dst, "app/.git"); err != nil {
+		if err := addDirectoryToArchive(tw, dst, ".git"); err != nil {
 			return fmt.Errorf("failed to add .git directory: %w", err)
 		}
 
@@ -132,7 +123,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 
 			if info.IsDir() {
 				header := &tar.Header{
-					Name:     filepath.Join("app", relPath) + "/",
+					Name:     relPath + "/",
 					Mode:     int64(info.Mode()),
 					ModTime:  info.ModTime(),
 					Typeflag: tar.TypeDir,
@@ -148,7 +139,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 				defer file.Close()
 
 				header := &tar.Header{
-					Name:    filepath.Join("app", relPath),
+					Name:    relPath,
 					Mode:    int64(info.Mode()),
 					Size:    info.Size(),
 					ModTime: info.ModTime(),
@@ -173,12 +164,16 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 
 	go func() {
 		tw := tar.NewWriter(pw)
-		defer tw.Close()
 
 		err := archive(tw, root, tempDir)
 		if err != nil {
 			pw.CloseWithError(fmt.Errorf("failed to create git archive: %w", err))
 		} else {
+			err = tw.Close()
+			if err != nil {
+				pw.CloseWithError(fmt.Errorf("failed to close tar writer: %w", err))
+			}
+
 			pw.Close()
 		}
 	}()

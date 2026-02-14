@@ -10,9 +10,24 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/ryanmoran/contagent/internal/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
+
+func createTestContainerOpts(sessionID string) runtime.CreateContainerOptions {
+	return runtime.CreateContainerOptions{
+		SessionID:   "test",
+		Image:       runtime.Image{Name: "alpine:latest"},
+		Args:        []string{"echo"},
+		Env:         []string{},
+		Volumes:     []string{},
+		WorkingDir:  "/app",
+		Network:     "some-network",
+		StopTimeout: 10,
+		TTYRetries:  10,
+		RetryDelay:  100 * time.Millisecond,
+	}
+}
 
 // TestContainerStartWithMock tests Container.Start using a mock Docker client
 func TestContainerStartWithMock(t *testing.T) {
@@ -24,21 +39,20 @@ func TestContainerStartWithMock(t *testing.T) {
 			},
 			containerStartFunc: func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error) {
 				startCalled = true
-				assert.Equal(t, "container123", containerID)
+				require.Equal(t, "container123", containerID)
 				return client.ContainerStartResult{}, nil
 			},
 		}
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
 		require.NoError(t, err)
-		assert.True(t, startCalled)
+		require.True(t, startCalled)
 	})
 
 	t.Run("fails when ContainerStart returns error", func(t *testing.T) {
@@ -53,14 +67,13 @@ func TestContainerStartWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to start container")
+		require.Contains(t, err.Error(), "failed to start container")
 	})
 }
 
@@ -74,22 +87,22 @@ func TestContainerRemoveWithMock(t *testing.T) {
 			},
 			containerRemoveFunc: func(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error) {
 				removeCalled = true
-				assert.Equal(t, "container123", containerID)
-				assert.False(t, options.Force)
+				require.Equal(t, "container123", containerID)
+				require.False(t, options.Force)
 				return client.ContainerRemoveResult{}, nil
 			},
 		}
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
-		err = container.Remove(ctx)
+		dc := container.(docker.Container)
+		err = dc.Remove(ctx)
 		require.NoError(t, err)
-		assert.True(t, removeCalled)
+		require.True(t, removeCalled)
 	})
 
 	t.Run("fails when ContainerRemove returns error", func(t *testing.T) {
@@ -104,14 +117,14 @@ func TestContainerRemoveWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
-		err = container.Remove(ctx)
+		dc := container.(docker.Container)
+		err = dc.Remove(ctx)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to remove container")
+		require.Contains(t, err.Error(), "failed to remove container")
 	})
 }
 
@@ -125,22 +138,21 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 			},
 			containerRemoveFunc: func(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error) {
 				removeCalled = true
-				assert.Equal(t, "container123", containerID)
-				assert.True(t, options.Force)
+				require.Equal(t, "container123", containerID)
+				require.True(t, options.Force)
 				return client.ContainerRemoveResult{}, nil
 			},
 		}
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
 		require.NoError(t, err)
-		assert.True(t, removeCalled)
+		require.True(t, removeCalled)
 	})
 
 	t.Run("fails when force remove returns error", func(t *testing.T) {
@@ -155,14 +167,13 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to force remove container")
+		require.Contains(t, err.Error(), "failed to force remove container")
 	})
 }
 
@@ -176,22 +187,21 @@ func TestContainerCopyToWithMock(t *testing.T) {
 			},
 			copyToContainerFunc: func(ctx context.Context, containerID string, options client.CopyToContainerOptions) (client.CopyToContainerResult, error) {
 				copyCalled = true
-				assert.Equal(t, "container123", containerID)
-				assert.Equal(t, "/tmp", options.DestinationPath)
+				require.Equal(t, "container123", containerID)
+				require.Equal(t, "/tmp", options.DestinationPath)
 				return client.CopyToContainerResult{}, nil
 			},
 		}
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
 		require.NoError(t, err)
-		assert.True(t, copyCalled)
+		require.True(t, copyCalled)
 	})
 
 	t.Run("fails when CopyToContainer returns error", func(t *testing.T) {
@@ -206,14 +216,13 @@ func TestContainerCopyToWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to copy content to container")
+		require.Contains(t, err.Error(), "failed to copy content to container")
 	})
 }
 
@@ -225,8 +234,8 @@ func TestContainerWaitWithMock(t *testing.T) {
 				return client.ContainerCreateResult{ID: "container123"}, nil
 			},
 			containerWaitFunc: func(ctx context.Context, containerID string, options client.ContainerWaitOptions) client.ContainerWaitResult {
-				assert.Equal(t, "container123", containerID)
-				assert.Equal(t, containertypes.WaitConditionNotRunning, options.Condition)
+				require.Equal(t, "container123", containerID)
+				require.Equal(t, containertypes.WaitConditionNotRunning, options.Condition)
 
 				errCh := make(chan error, 1)
 				resCh := make(chan containertypes.WaitResponse, 1)
@@ -237,15 +246,14 @@ func TestContainerWaitWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		writer := newMockWriter()
 		err = container.Wait(ctx, writer)
 		require.NoError(t, err)
-		assert.Contains(t, writer.String(), "Container exited with status: 0")
+		require.Contains(t, writer.String(), "Container exited with status: 0")
 	})
 
 	t.Run("waits for container to complete with non-zero exit code", func(t *testing.T) {
@@ -263,15 +271,16 @@ func TestContainerWaitWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"sh", "-c", "exit 42"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		opts := createTestContainerOpts("test")
+		opts.Args = []string{"sh", "-c", "exit 42"}
+		container, err := c.CreateContainer(ctx, opts)
 		require.NoError(t, err)
 
 		writer := newMockWriter()
 		err = container.Wait(ctx, writer)
 		require.NoError(t, err)
-		assert.Contains(t, writer.String(), "Container exited with status: 42")
+		require.Contains(t, writer.String(), "Container exited with status: 42")
 	})
 
 	t.Run("handles wait error", func(t *testing.T) {
@@ -289,14 +298,13 @@ func TestContainerWaitWithMock(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
 		require.NoError(t, err)
 
 		writer := newMockWriter()
 		err = container.Wait(ctx, writer)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to wait for container")
+		require.Contains(t, err.Error(), "failed to wait for container")
 	})
 }

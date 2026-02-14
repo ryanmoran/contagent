@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"os"
 	"strings"
 	"time"
 )
@@ -10,6 +9,7 @@ import (
 // Config represents the parsed and merged configuration for contagent.
 // It includes all settings that can be specified via config files or CLI flags.
 type Config struct {
+	Runtime     string            `yaml:"runtime"`
 	Image       string            `yaml:"image"`
 	WorkingDir  string            `yaml:"working_dir"`
 	Dockerfile  string            `yaml:"dockerfile"`
@@ -52,9 +52,10 @@ func (s *stringSlice) Set(value string) error {
 // Parameters:
 //   - cliArgs: Command-line arguments to parse (flags override config files)
 //   - environment: Environment variables for expansion (typically os.Environ())
+//   - startDir: Starting directory for project config discovery (walks up looking for .contagent.yaml)
 //
 // Returns the final merged configuration, remaining program arguments, or an error if loading/parsing fails.
-func Load(cliArgs []string, environment []string) (Config, []string, error) {
+func Load(cliArgs []string, environment []string, startDir string) (Config, []string, error) {
 	// 1. Load defaults
 	cfg := Config{
 		Image:       "contagent:latest",
@@ -87,12 +88,7 @@ func Load(cliArgs []string, environment []string) (Config, []string, error) {
 	}
 
 	// 3. Find and load project config
-	currentDir, err := os.Getwd()
-	if err != nil {
-		// If we can't get working directory, continue without project config
-		currentDir = "."
-	}
-	projectConfigPath, err := FindProjectConfig(currentDir)
+	projectConfigPath, err := FindProjectConfig(startDir)
 	if err != nil {
 		return Config{}, nil, err
 	}
@@ -120,6 +116,7 @@ func Load(cliArgs []string, environment []string) (Config, []string, error) {
 	}
 
 	fs := flag.NewFlagSet("contagent", flag.ContinueOnError)
+	fs.StringVar(&cliCfg.Runtime, "runtime", "", "Container runtime (docker or apple)")
 	fs.StringVar(&cliCfg.Dockerfile, "dockerfile", "", "Dockerfile path")
 	fs.StringVar(&cliCfg.Image, "image", "", "Container image name")
 	fs.StringVar(&cliCfg.WorkingDir, "working-dir", "", "Working directory in container")

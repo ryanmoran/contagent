@@ -10,6 +10,10 @@ import (
 
 // TestConfigErrorCases tests edge cases and potential error scenarios in config parsing
 func TestConfigErrorCases(t *testing.T) {
+	// Use an isolated directory so FindProjectConfig won't find
+	// any .contagent.yaml files in ancestor directories.
+	t.Chdir(t.TempDir())
+
 	t.Run("ParseConfig edge cases", func(t *testing.T) {
 		t.Run("empty args", func(t *testing.T) {
 			args := []string{}
@@ -34,15 +38,17 @@ func TestConfigErrorCases(t *testing.T) {
 		})
 
 		t.Run("only flags, no command", func(t *testing.T) {
-			args := []string{"--env", "VAR1=value1", "--volume", "/path:/path"}
+			args := []string{
+				"--runtime", "apple",
+				"--env", "VAR1=value1",
+				"--volume", "/path:/path",
+			}
 			env := []string{"TERM=xterm"}
 
 			config, err := internal.ParseConfig(args, env)
 			require.NoError(t, err)
 			require.Empty(t, config.Args) // No command after flags
 			require.Equal(t, []string{
-				"/var/run/docker.sock:/var/run/docker.sock",
-				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"/path:/path",
 			}, config.Volumes)
 		})
@@ -72,7 +78,11 @@ func TestConfigErrorCases(t *testing.T) {
 		})
 
 		t.Run("volume flag without value", func(t *testing.T) {
-			args := []string{"--volume", "command"}
+			args := []string{
+				"--runtime", "apple",
+				"--volume",
+				"command",
+			}
 			env := []string{"TERM=xterm"}
 
 			config, err := internal.ParseConfig(args, env)
@@ -80,14 +90,13 @@ func TestConfigErrorCases(t *testing.T) {
 			// "command" is treated as volume value
 			require.Empty(t, config.Args)
 			require.Equal(t, []string{
-				"/var/run/docker.sock:/var/run/docker.sock",
-				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"command",
 			}, config.Volumes)
 		})
 
 		t.Run("multiple consecutive flags", func(t *testing.T) {
 			args := []string{
+				"--runtime", "apple",
 				"--env", "VAR1=val1",
 				"--env", "VAR2=val2",
 				"--volume", "/a:/a",
@@ -104,8 +113,6 @@ func TestConfigErrorCases(t *testing.T) {
 			require.Contains(t, config.Env, "VAR2=val2")
 			require.Contains(t, config.Env, "VAR3=val3")
 			require.Equal(t, []string{
-				"/var/run/docker.sock:/var/run/docker.sock",
-				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"/a:/a",
 				"/b:/b",
 			}, config.Volumes)

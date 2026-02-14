@@ -9,8 +9,10 @@ import (
 	"syscall"
 
 	"github.com/ryanmoran/contagent/internal"
+	"github.com/ryanmoran/contagent/internal/apple"
 	"github.com/ryanmoran/contagent/internal/docker"
 	"github.com/ryanmoran/contagent/internal/git"
+	"github.com/ryanmoran/contagent/internal/runtime"
 )
 
 func main() {
@@ -60,14 +62,21 @@ func run(args, env []string) error {
 	}
 	cleanup.Add("git-server", remote.Close)
 
-	client, err := docker.NewDefaultClient()
-	if err != nil {
-		return fmt.Errorf("failed to create docker client: %w\nMake sure Docker is installed and running (try 'docker ps')", err)
+	// Create runtime based on config
+	var rt runtime.Runtime
+	switch config.Runtime {
+	case "apple":
+		rt = apple.NewRuntime()
+	case "docker":
+		dockerClient, err := docker.NewDefaultClient()
+		if err != nil {
+			return fmt.Errorf("failed to create docker client: %w\nMake sure Docker is installed and running (try 'docker ps')", err)
+		}
+		rt = dockerClient
+	default:
+		return fmt.Errorf("unknown runtime: %q\nSupported runtimes: docker, apple", config.Runtime)
 	}
-	cleanup.Add("docker-client", func() error {
-		client.Close()
-		return nil
-	})
+	cleanup.Add("runtime", rt.Close)
 
 	// Validate that Dockerfile path is provided
 	if config.DockerfilePath == "" {
@@ -78,23 +87,25 @@ func run(args, env []string) error {
 			"See .contagent.example.yaml for more details")
 	}
 
-	image, err := client.BuildImage(ctx, config.DockerfilePath, config.ImageName, w)
+	image, err := rt.BuildImage(ctx, config.DockerfilePath, config.ImageName, w)
 	if err != nil {
-		return fmt.Errorf("failed to build docker image %q from %q: %w", config.ImageName, config.DockerfilePath, err)
+		return fmt.Errorf("failed to build image %q from %q: %w", config.ImageName, config.DockerfilePath, err)
 	}
 
-	container, err := client.CreateContainer(
+	container, err := rt.CreateContainer(
 		ctx,
-		session.ID(),
-		image,
-		config.Args,
-		config.Env,
-		config.Volumes,
-		config.WorkingDir,
-		config.Network,
-		config.StopTimeout,
-		config.TTYRetries,
-		config.RetryDelay,
+		runtime.CreateContainerOptions{
+			SessionID:   session.ID(),
+			Image:       image,
+			Args:        config.Args,
+			Env:         config.Env,
+			Volumes:     config.Volumes,
+			WorkingDir:  config.WorkingDir,
+			Network:     config.Network,
+			StopTimeout: config.StopTimeout,
+			TTYRetries:  config.TTYRetries,
+			RetryDelay:  config.RetryDelay,
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create container %q from image %q: %w", session.ID(), image.Name, err)
@@ -105,7 +116,7 @@ func run(args, env []string) error {
 
 	archive, err := git.CreateArchive(
 		workingDirectory,
-		fmt.Sprintf("http://host.docker.internal:%d", remote.Port()),
+		fmt.Sprintf("http://%s:%d", rt.HostAddress(), remote.Port()),
 		session.Branch(),
 		config.GitUser.Name,
 		config.GitUser.Email,
@@ -116,7 +127,7 @@ func run(args, env []string) error {
 	}
 	cleanup.Add("archive", archive.Close)
 
-	err = container.CopyTo(ctx, archive, "/")
+	err = container.CopyTo(ctx, archive, config.WorkingDir)
 	if err != nil {
 		return fmt.Errorf("failed to copy git archive to container %q: %w", session.ID(), err)
 	}

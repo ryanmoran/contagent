@@ -9,7 +9,7 @@ import (
 	"github.com/docker/cli/cli/streams"
 	"github.com/moby/moby/client"
 	"github.com/ryanmoran/contagent/internal/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,9 +18,9 @@ func TestTTYResizeWithMock(t *testing.T) {
 	t.Run("resizes container successfully", func(t *testing.T) {
 		mock := &mockDockerClient{
 			containerResizeFunc: func(ctx context.Context, containerID string, options client.ContainerResizeOptions) (client.ContainerResizeResult, error) {
-				assert.Equal(t, "container123", containerID)
-				assert.Greater(t, options.Height, uint(0))
-				assert.Greater(t, options.Width, uint(0))
+				require.Equal(t, "container123", containerID)
+				require.Greater(t, options.Height, uint(0))
+				require.Greater(t, options.Width, uint(0))
 				return client.ContainerResizeResult{}, nil
 			},
 		}
@@ -168,9 +168,19 @@ func TestContainerResizeIntegration(t *testing.T) {
 
 		c := docker.NewClient(mock)
 		ctx := context.Background()
-		image := docker.Image{Name: "alpine:latest"}
 
-		container, err := c.CreateContainer(ctx, "test", image, []string{"echo"}, []string{}, []string{}, "/app", "some-network", 10, 10, 100*time.Millisecond)
+		container, err := c.CreateContainer(ctx, runtime.CreateContainerOptions{
+			SessionID:   "test",
+			Image:       runtime.Image{Name: "alpine:latest"},
+			Args:        []string{"echo"},
+			Env:         []string{},
+			Volumes:     []string{},
+			WorkingDir:  "/app",
+			Network:     "some-network",
+			StopTimeout: 10,
+			TTYRetries:  10,
+			RetryDelay:  100 * time.Millisecond,
+		})
 		require.NoError(t, err)
 
 		writer := newMockWriter()

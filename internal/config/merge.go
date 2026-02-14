@@ -10,6 +10,9 @@ func Merge(base, override Config) Config {
 	result := base
 
 	// Scalar overrides
+	if override.Runtime != "" {
+		result.Runtime = override.Runtime
+	}
 	if override.Image != "" {
 		result.Image = override.Image
 	}
