@@ -1,0 +1,117 @@
+version: "2"
+
+run:
+  concurrency: 4
+  modules-download-mode: readonly
+  issues-exit-code: 1
+  allow-parallel-runners: true
+
+output:
+  formats:
+    text:
+      path: stderr
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - depguard
+    - errcheck
+    - errorlint
+    - exhaustive
+    - exhaustruct
+    - forbidigo
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nolintlint
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: golang.org/x/exp/slog
+              desc: Please use log/slog instead
+            - pkg: github.com/bufbuild/connect-go
+              desc: Please use connectrpc.com/connect instead
+            - pkg: github.com/pingcap/log
+              desc: Please use log/slog instead of this
+            - pkg: github.com/pkg/errors
+              desc: The stdlib errors package should have all you need now
+            - pkg: golang.org/x/exp/slices
+              desc: Please use slices from the stdlib
+            - pkg: github.com/stretchr/testify/assert
+              desc: Please use testify/require instead
+    errcheck:
+      disable-default-exclusions: false
+      check-type-assertions: true
+      check-blank: true
+    errorlint:
+      errorf: true
+      errorf-multi: true
+      asserts: true
+      comparison: true
+    exhaustive:
+      # Set to true if a "default" case should be considered exhaustive,
+      # even if all enum members are not explicitly listed.
+      # Default: false
+      default-signifies-exhaustive: false
+    exhaustruct:
+      exclude:
+        - ^net/http.*
+        - ^database/sql.*
+        - .*mocks.*
+        - .*mock.*
+        - ^github.com/moby/moby/.*
+        - ^github.com/docker/.*
+        - ^archive/tar.*
+    gosec:
+      excludes:
+        - G107
+        - G404
+        - G115
+    govet:
+      disable:
+        - composites
+    misspell:
+      locale: US
+      ignore-rules:
+        - cancelled
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    staticcheck:
+      checks:
+        - -SA1029
+        - -ST1003
+        - all
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - exhaustruct
+        path: _test\.go
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+
+formatters:
+  enable:
+    - goimports

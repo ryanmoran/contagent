@@ -15,7 +15,7 @@ import (
 )
 
 // Compile-time check that Client implements runtime.Runtime.
-var _ runtime.Runtime = Client{}
+var _ runtime.Runtime = Client{} //nolint:exhaustruct // Intentional zero value for interface check
 
 type Client struct {
 	client DockerClient

@@ -160,7 +160,7 @@ func TestExpandEnv(t *testing.T) {
 		require.Equal(t, 50*time.Millisecond, result.RetryDelay)
 		require.Equal(t, "Test User", result.Git.User.Name)
 		require.Equal(t, "test@example.com", result.Git.User.Email)
-		
+
 		// Check that env was expanded
 		require.Equal(t, "/home/user", result.Env["VAR"])
 	})
@@ -189,7 +189,7 @@ func TestExpandEnv(t *testing.T) {
 func TestExpandHome(t *testing.T) {
 	t.Run("ExpandsHomeDirectory", func(t *testing.T) {
 		result := expandHome("~/config")
-		
+
 		// Should expand to actual home directory
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestExpandHome(t *testing.T) {
 
 	t.Run("ExpandsHomeDirWithSubpath", func(t *testing.T) {
 		result := expandHome("~/projects/myapp")
-		
+
 		home, err := os.UserHomeDir()
 		require.NoError(t, err)
 		require.Equal(t, filepath.Join(home, "projects/myapp"), result)
@@ -206,25 +206,25 @@ func TestExpandHome(t *testing.T) {
 
 	t.Run("DoesNotExpandTildeNotAtStart", func(t *testing.T) {
 		result := expandHome("/path/to/~/file")
-		
+
 		require.Equal(t, "/path/to/~/file", result)
 	})
 
 	t.Run("DoesNotExpandTildeWithoutSlash", func(t *testing.T) {
 		result := expandHome("~file")
-		
+
 		require.Equal(t, "~file", result)
 	})
 
 	t.Run("HandlesRootPath", func(t *testing.T) {
 		result := expandHome("/absolute/path")
-		
+
 		require.Equal(t, "/absolute/path", result)
 	})
 
 	t.Run("HandlesEmptyPath", func(t *testing.T) {
 		result := expandHome("")
-		
+
 		require.Equal(t, "", result)
 	})
 }

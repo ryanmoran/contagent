@@ -184,7 +184,7 @@ func TestContainerResizeIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		writer := newMockWriter()
-		_ = container.Attach(ctx, writer)
+		_ = container.Attach(ctx, writer) //nolint:errcheck // Test verifies resize behavior, not attach success
 
 		// In test environment, resize is called but with 0x0 dimensions
 		// The resize call itself should not fail

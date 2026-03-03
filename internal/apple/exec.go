@@ -2,6 +2,7 @@ package apple
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os/exec"
 )
@@ -30,7 +31,7 @@ type DefaultRunner struct{}
 
 // Run executes a command and waits for it to complete.
 func (r DefaultRunner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // callers are responsible for safe inputs
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -39,7 +40,7 @@ func (r DefaultRunner) Run(ctx context.Context, stdin io.Reader, stdout, stderr 
 
 // Start begins executing a command without waiting for completion.
 func (r DefaultRunner) Start(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, name string, args ...string) (Process, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // callers are responsible for safe inputs
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -58,7 +59,7 @@ type processWrapper struct {
 func (p *processWrapper) Wait() (int, error) {
 	err := p.cmd.Wait()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return exitErr.ExitCode(), nil
 		}
 		return -1, err

@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,7 +21,7 @@ import (
 )
 
 // Compile-time check that Container implements runtime.Container.
-var _ runtime.Container = Container{}
+var _ runtime.Container = Container{} //nolint:exhaustruct // Intentional zero value for interface check
 
 type Container struct {
 	client DockerClient
@@ -121,7 +122,7 @@ func (c Container) Attach(ctx context.Context, w internal.Writer) error {
 		if gctx.Err() != nil {
 			return nil
 		}
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			w.Warningf("stdout/stderr forwarding error: %v", err)
 		}
 		return nil
@@ -131,7 +132,9 @@ func (c Container) Attach(ctx context.Context, w internal.Writer) error {
 	// This doesn't block the main flow since the container will terminate
 	// or the context will be cancelled
 	go func() {
-		_ = g.Wait()
+		if err := g.Wait(); err != nil {
+			w.Warningf("container I/O forwarding error: %v", err)
+		}
 	}()
 
 	return nil

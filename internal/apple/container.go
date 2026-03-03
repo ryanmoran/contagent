@@ -65,7 +65,7 @@ func (c *Container) CopyTo(ctx context.Context, content io.Reader, path string) 
 
 	err = c.runner.Run(ctx, content, os.Stdout, os.Stderr,
 		"container", "exec", "--interactive", c.name,
-		"tar", "xf", "-", "-C", path,
+		"tar", "xf", "-", "-C", path, "--warning", "no-timestamp",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to copy content to container %q: %w", c.name, err)
@@ -135,11 +135,13 @@ func (c *Container) Wait(ctx context.Context, w internal.Writer) error {
 	case <-sigChan:
 		w.Println("\nReceived signal, stopping container...")
 		stopCtx := context.Background()
-		_ = c.runner.Run(stopCtx, nil, nil, nil,
+		if err := c.runner.Run(stopCtx, nil, nil, nil,
 			"container", "stop",
 			"--time", strconv.Itoa(c.stopTimeout),
 			c.name,
-		)
+		); err != nil {
+			w.Warningf("failed to stop container: %v", err)
+		}
 		<-done
 	case <-ctx.Done():
 		<-done

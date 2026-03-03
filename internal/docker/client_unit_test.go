@@ -25,16 +25,18 @@ func TestBuildImageWithMock(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0600)
 		require.NoError(t, err)
 
 		buildOutput := []map[string]interface{}{
 			{"stream": "Step 1/1 : FROM alpine:latest\n"},
 			{"stream": "Successfully built abc123\n"},
 		}
-		outputBytes, _ := json.Marshal(buildOutput[0])
+		outputBytes, err := json.Marshal(buildOutput[0])
+		require.NoError(t, err)
 		outputBytes = append(outputBytes, '\n')
-		output2, _ := json.Marshal(buildOutput[1])
+		output2, err := json.Marshal(buildOutput[1])
+		require.NoError(t, err)
 		outputBytes = append(outputBytes, output2...)
 		outputBytes = append(outputBytes, '\n')
 
@@ -62,7 +64,7 @@ func TestBuildImageWithMock(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0600)
 		require.NoError(t, err)
 
 		mock := &mockDockerClient{
@@ -86,7 +88,7 @@ func TestBuildImageWithMock(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0600)
 		require.NoError(t, err)
 
 		errorOutput := map[string]interface{}{
@@ -95,7 +97,8 @@ func TestBuildImageWithMock(t *testing.T) {
 				"message": "dockerfile parse error",
 			},
 		}
-		outputBytes, _ := json.Marshal(errorOutput)
+		outputBytes, err := json.Marshal(errorOutput)
+		require.NoError(t, err)
 		outputBytes = append(outputBytes, '\n')
 
 		mock := &mockDockerClient{
@@ -121,7 +124,7 @@ func TestBuildImageWithMock(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\n"), 0600)
 		require.NoError(t, err)
 
 		mock := &mockDockerClient{
@@ -167,7 +170,8 @@ func TestCreateContainerWithMock(t *testing.T) {
 			RetryDelay:  100 * time.Millisecond,
 		})
 		require.NoError(t, err)
-		dc := container.(docker.Container)
+		dc, ok := container.(docker.Container)
+		require.True(t, ok, "container should be docker.Container type")
 		require.Equal(t, "container123", dc.ID)
 		require.Equal(t, "test-container", dc.Name)
 	})

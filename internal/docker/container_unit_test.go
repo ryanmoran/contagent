@@ -9,14 +9,15 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/ryanmoran/contagent/internal"
 	"github.com/ryanmoran/contagent/internal/docker"
 	"github.com/ryanmoran/contagent/internal/runtime"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestContainerOpts(sessionID string) runtime.CreateContainerOptions {
+func createTestContainerOpts() runtime.CreateContainerOptions {
 	return runtime.CreateContainerOptions{
-		SessionID:   "test",
+		SessionID:   internal.SessionID("test"),
 		Image:       runtime.Image{Name: "alpine:latest"},
 		Args:        []string{"echo"},
 		Env:         []string{},
@@ -47,7 +48,7 @@ func TestContainerStartWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -68,7 +69,7 @@ func TestContainerStartWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.Start(ctx)
@@ -96,10 +97,11 @@ func TestContainerRemoveWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
-		dc := container.(docker.Container)
+		dc, ok := container.(docker.Container)
+		require.True(t, ok, "container should be docker.Container type")
 		err = dc.Remove(ctx)
 		require.NoError(t, err)
 		require.True(t, removeCalled)
@@ -118,10 +120,11 @@ func TestContainerRemoveWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
-		dc := container.(docker.Container)
+		dc, ok := container.(docker.Container)
+		require.True(t, ok, "container should be docker.Container type")
 		err = dc.Remove(ctx)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to remove container")
@@ -147,7 +150,7 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -168,7 +171,7 @@ func TestContainerForceRemoveWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.ForceRemove(ctx)
@@ -196,7 +199,7 @@ func TestContainerCopyToWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
@@ -217,7 +220,7 @@ func TestContainerCopyToWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		err = container.CopyTo(ctx, io.NopCloser(nil), "/tmp")
@@ -247,7 +250,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		writer := newMockWriter()
@@ -272,7 +275,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		opts := createTestContainerOpts("test")
+		opts := createTestContainerOpts()
 		opts.Args = []string{"sh", "-c", "exit 42"}
 		container, err := c.CreateContainer(ctx, opts)
 		require.NoError(t, err)
@@ -299,7 +302,7 @@ func TestContainerWaitWithMock(t *testing.T) {
 		c := docker.NewClient(mock)
 		ctx := context.Background()
 
-		container, err := c.CreateContainer(ctx, createTestContainerOpts("test"))
+		container, err := c.CreateContainer(ctx, createTestContainerOpts())
 		require.NoError(t, err)
 
 		writer := newMockWriter()

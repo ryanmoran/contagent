@@ -69,7 +69,9 @@ func (t TTY) Monitor(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-sigchan:
-				_ = t.Resize(ctx)
+				if err := t.Resize(ctx); err != nil {
+					t.writer.Warningf("failed to resize terminal: %v", err)
+				}
 			}
 		}
 	}()
