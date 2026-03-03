@@ -26,7 +26,7 @@ func TestServer(t *testing.T) {
 		err = cmd.Run()
 		require.NoError(t, err)
 
-		err = os.WriteFile(filepath.Join(dir, "test.txt"), []byte("initial content\n"), 0644)
+		err = os.WriteFile(filepath.Join(dir, "test.txt"), []byte("initial content\n"), 0600)
 		require.NoError(t, err)
 
 		cmd = exec.Command("git", "add", "test.txt")
@@ -65,7 +65,7 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		cmd := exec.Command("git", "clone", fmt.Sprintf("http://127.0.0.1:%d/.git", server.Port()), dir)
+		cmd := exec.Command("git", "clone", fmt.Sprintf("http://127.0.0.1:%d/.git", server.Port()), dir) //nolint:gosec // G204: Test with controlled input
 		err = cmd.Run()
 		require.NoError(t, err)
 
@@ -74,7 +74,7 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "initial content\n", string(content))
 
-		err = os.WriteFile(path, []byte("modified content\n"), 0644)
+		err = os.WriteFile(path, []byte("modified content\n"), 0600)
 		require.NoError(t, err)
 
 		cmd = exec.Command("git", "add", "test.txt")

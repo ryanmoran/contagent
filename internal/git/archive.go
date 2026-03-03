@@ -3,6 +3,7 @@ package git
 import (
 	"archive/tar"
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -59,8 +60,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 		cmd.Dir = tempRoot
 		err = cmd.Run()
 		if err != nil {
-			exitError, ok := err.(*exec.ExitError)
-			if !ok || exitError.ExitCode() != 2 {
+			if exitError, ok := errors.AsType[*exec.ExitError](err); !ok || exitError.ExitCode() != 2 {
 				return fmt.Errorf("failed to remove remote \"origin\": %w", err)
 			}
 		}
@@ -112,7 +112,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			}
 
 			fullPath := filepath.Join(tempRoot, relPath)
-			info, err := os.Lstat(fullPath)
+			info, err := os.Lstat(fullPath) //nolint:gosec // path is constructed from a controlled temp root
 			if err != nil {
 				continue
 			}
@@ -132,7 +132,7 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 					return fmt.Errorf("failed to write directory header for %s: %w", relPath, err)
 				}
 			} else {
-				file, err := os.Open(fullPath)
+				file, err := os.Open(fullPath) //nolint:gosec // path is constructed from a controlled temp root
 				if err != nil {
 					return fmt.Errorf("failed to open tracked file %q: %w\nFile may have been deleted", relPath, err)
 				}

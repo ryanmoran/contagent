@@ -57,7 +57,7 @@ func (s *stringSlice) Set(value string) error {
 // Returns the final merged configuration, remaining program arguments, or an error if loading/parsing fails.
 func Load(cliArgs []string, environment []string, startDir string) (Config, []string, error) {
 	// 1. Load defaults
-	cfg := Config{
+	cfg := Config{ //nolint:exhaustruct // Partial initialization with defaults, other fields loaded from config file
 		Image:       "contagent:latest",
 		WorkingDir:  "/app",
 		Network:     "default",
@@ -106,10 +106,10 @@ func Load(cliArgs []string, environment []string, startDir string) (Config, []st
 		volumeFlags stringSlice
 		retryDelay  string
 	)
-	
-	cliCfg := Config{
+
+	cliCfg := Config{ //nolint:exhaustruct // Partial initialization, fields populated via CLI flags
 		Git: GitConfig{
-			User: GitUserConfig{},
+			User: GitUserConfig{}, //nolint:exhaustruct // Empty, populated via CLI flags
 		},
 		Env:     make(map[string]string),
 		Volumes: []string{},
@@ -130,7 +130,7 @@ func Load(cliArgs []string, environment []string, startDir string) (Config, []st
 	fs.Var(&volumeFlags, "volume", "Volume mount")
 
 	// Ignore parse errors since we want to handle remaining args separately
-	_ = fs.Parse(cliArgs)
+	_ = fs.Parse(cliArgs) //nolint:errcheck // Intentionally parsing what we can and handling remaining args
 
 	// Extract remaining program arguments
 	programArgs := fs.Args()

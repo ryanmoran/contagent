@@ -13,7 +13,7 @@ func TestFindGlobalConfig(t *testing.T) {
 	t.Run("with CONTAGENT_GLOBAL_CONFIG_FILE set and file exists", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "custom-config.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0644))
+		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0600))
 
 		env := []string{"CONTAGENT_GLOBAL_CONFIG_FILE=" + configPath}
 		path, err := FindGlobalConfig(env)
@@ -41,7 +41,7 @@ func TestFindGlobalConfig(t *testing.T) {
 		configDir := filepath.Join(tmpDir, "contagent")
 		require.NoError(t, os.MkdirAll(configDir, 0755))
 		configPath := filepath.Join(configDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0644))
+		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0600))
 
 		env := []string{"XDG_CONFIG_HOME=" + tmpDir}
 		path, err := FindGlobalConfig(env)
@@ -62,7 +62,7 @@ func TestFindGlobalConfig(t *testing.T) {
 		configDir := filepath.Join(tmpDir, ".config", "contagent")
 		require.NoError(t, os.MkdirAll(configDir, 0755))
 		configPath := filepath.Join(configDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0644))
+		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0600))
 
 		env := []string{"HOME=" + tmpDir}
 		path, err := FindGlobalConfig(env)
@@ -90,17 +90,17 @@ func TestFindGlobalConfig(t *testing.T) {
 
 		// Create all three config locations
 		customPath := filepath.Join(tmpDir, "custom.yaml")
-		require.NoError(t, os.WriteFile(customPath, []byte("image: custom"), 0644))
+		require.NoError(t, os.WriteFile(customPath, []byte("image: custom"), 0600))
 
 		xdgDir := filepath.Join(tmpDir, "xdg", "contagent")
 		require.NoError(t, os.MkdirAll(xdgDir, 0755))
 		xdgPath := filepath.Join(xdgDir, "config.yaml")
-		require.NoError(t, os.WriteFile(xdgPath, []byte("image: xdg"), 0644))
+		require.NoError(t, os.WriteFile(xdgPath, []byte("image: xdg"), 0600))
 
 		homeDir := filepath.Join(tmpDir, "home", ".config", "contagent")
 		require.NoError(t, os.MkdirAll(homeDir, 0755))
 		homePath := filepath.Join(homeDir, "config.yaml")
-		require.NoError(t, os.WriteFile(homePath, []byte("image: home"), 0644))
+		require.NoError(t, os.WriteFile(homePath, []byte("image: home"), 0600))
 
 		// CONTAGENT_GLOBAL_CONFIG_FILE takes precedence
 		env := []string{
@@ -135,7 +135,7 @@ func TestFindProjectConfig(t *testing.T) {
 	t.Run("finds config in current directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, ".contagent.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0644))
+		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0600))
 
 		path, err := FindProjectConfig(tmpDir)
 		require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestFindProjectConfig(t *testing.T) {
 	t.Run("finds config in parent directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, ".contagent.yaml")
-		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0644))
+		require.NoError(t, os.WriteFile(configPath, []byte("image: test"), 0600))
 
 		subDir := filepath.Join(tmpDir, "sub", "dir")
 		require.NoError(t, os.MkdirAll(subDir, 0755))
@@ -177,13 +177,13 @@ func TestFindProjectConfig(t *testing.T) {
 
 		// Create config in root
 		rootConfig := filepath.Join(tmpDir, ".contagent.yaml")
-		require.NoError(t, os.WriteFile(rootConfig, []byte("image: root"), 0644))
+		require.NoError(t, os.WriteFile(rootConfig, []byte("image: root"), 0600))
 
 		// Create config in subdirectory
 		subDir := filepath.Join(tmpDir, "sub")
 		require.NoError(t, os.MkdirAll(subDir, 0755))
 		subConfig := filepath.Join(subDir, ".contagent.yaml")
-		require.NoError(t, os.WriteFile(subConfig, []byte("image: sub"), 0644))
+		require.NoError(t, os.WriteFile(subConfig, []byte("image: sub"), 0600))
 
 		// Should find the nearest one (subConfig)
 		deepDir := filepath.Join(subDir, "deep")
@@ -200,9 +200,9 @@ func TestFindProjectConfig(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, path)
 		// Either "cannot get absolute path" or "cannot stat" are valid errors
-		require.True(t, 
+		require.True(t,
 			err.Error() == "cannot get absolute path" ||
-			(err.Error() != "" && (err.Error()[:11] == "cannot stat" || err.Error()[:20] == "cannot get absolute")),
+				(err.Error() != "" && (err.Error()[:11] == "cannot stat" || err.Error()[:20] == "cannot get absolute")),
 			"Expected error about invalid path, got: %v", err)
 	})
 }

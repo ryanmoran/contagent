@@ -49,7 +49,11 @@ func TestGitServerErrorCases(t *testing.T) {
 			// Save current directory
 			oldWd, err := os.Getwd()
 			require.NoError(t, err)
-			defer os.Chdir(oldWd)
+			t.Cleanup(func() {
+				if err := os.Chdir(oldWd); err != nil {
+					t.Logf("cleanup: failed to restore directory: %v", err)
+				}
+			})
 
 			// Change to subdirectory
 			require.NoError(t, os.Chdir(subDir))
@@ -138,7 +142,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -159,7 +163,11 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, err)
 
 			// Restore permissions for cleanup
-			defer os.Chmod(dir, 0755)
+			t.Cleanup(func() {
+				if err := os.Chmod(dir, 0755); err != nil {
+					t.Logf("cleanup: failed to restore permissions: %v", err)
+				}
+			})
 
 			_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
 			require.Error(t, err)
@@ -177,7 +185,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -214,7 +222,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -235,10 +243,14 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			if err == nil && reader != nil {
 				defer reader.Close()
 				// Error may occur when reading
-				_, err = io.ReadAll(reader)
+				_, readErr := io.ReadAll(reader)
+				// Git may accept or reject the branch name depending on version
+				// We just ensure it handles it somehow (either immediate error or read error)
+				require.Error(t, readErr, "Expected error when reading archive with invalid branch name")
+			} else {
+				// Error occurred during CreateArchive, which is also acceptable
+				require.Error(t, err, "Expected error when creating archive with invalid branch name")
 			}
-			// Git may accept or reject the branch name depending on version
-			// We just ensure it handles it somehow (either immediate error or read error)
 		})
 
 		t.Run("invalid git user config", func(t *testing.T) {
@@ -253,7 +265,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -289,7 +301,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -312,16 +324,17 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Archive will fail because it tries to create a branch that already exists in the copied .git
 			reader, err := git.CreateArchive(dir, "http://example.com", "test-branch", "user", "user@example.com", internal.NewStandardWriter())
-			if reader != nil {
+			if err == nil && reader != nil {
 				defer reader.Close()
 				// Error may occur during read
 				_, readErr := io.Copy(io.Discard, reader)
-				if readErr != nil {
-					// Expected: branch already exists
-					require.Contains(t, readErr.Error(), "failed to create and checkout branch")
-				}
+				// Expected: branch already exists
+				require.Error(t, readErr, "Expected error when reading archive with duplicate branch")
+				require.Contains(t, readErr.Error(), "failed to create and checkout branch")
+			} else {
+				// Archive creation may fail immediately, which is also acceptable
+				require.Error(t, err, "Expected error when creating archive with duplicate branch")
 			}
-			// Archive creation may fail immediately or during read
 			// Both are acceptable error handling
 		})
 
@@ -337,7 +350,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -380,7 +393,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Create and commit a file
 			testFile := filepath.Join(dir, "test.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("committed\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("committed\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = dir
@@ -397,7 +410,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Make uncommitted changes
-			require.NoError(t, os.WriteFile(testFile, []byte("uncommitted\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("uncommitted\n"), 0600))
 
 			// Archive should only include committed content (archives HEAD, not working tree)
 			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
@@ -417,7 +430,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			testFile := filepath.Join(mainDir, "main.txt")
-			require.NoError(t, os.WriteFile(testFile, []byte("main\n"), 0644))
+			require.NoError(t, os.WriteFile(testFile, []byte("main\n"), 0600))
 
 			cmd = exec.Command("git", "add", ".")
 			cmd.Dir = mainDir

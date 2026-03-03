@@ -18,7 +18,7 @@ type cleanupFunc struct {
 
 // NewCleanupManager creates a new cleanup manager.
 func NewCleanupManager() *CleanupManager {
-	return &CleanupManager{}
+	return &CleanupManager{} //nolint:exhaustruct // Zero values are appropriate for mu and funcs
 }
 
 // Add registers a cleanup function. Functions are executed in LIFO order

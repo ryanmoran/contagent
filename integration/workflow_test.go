@@ -61,7 +61,7 @@ func TestWorkflow(t *testing.T) {
 		require.NoError(t, err, string(output))
 
 		t.Cleanup(func() {
-			err := os.RemoveAll(file.Name())
+			err := os.RemoveAll(file.Name()) //nolint:gosec // path comes from os.CreateTemp, safe in tests
 			require.NoError(t, err)
 
 			err = os.RemoveAll(dir)
@@ -77,7 +77,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("runs a simple echo command", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "echo integration_test")
 		cmd.Dir = identifiers.RepositoryPath
@@ -95,7 +95,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("container has access to git repository", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "cd /app && git rev-parse --is-inside-work-tree")
 		cmd.Dir = identifiers.RepositoryPath
@@ -113,7 +113,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("container can access working directory", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "pwd | grep -q /app")
 		cmd.Dir = identifiers.RepositoryPath
@@ -131,7 +131,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("environment variables are passed through", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "test \"$TERM\" = 'screen-256color'")
 		cmd.Dir = identifiers.RepositoryPath
@@ -149,7 +149,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("container can execute commands with non-zero exit", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "exit 42")
 		cmd.Dir = identifiers.RepositoryPath
@@ -177,10 +177,10 @@ func TestWorkflow(t *testing.T) {
 
 		testFile := filepath.Join(tmpDir, "test.txt")
 		testContent := "integration test content"
-		err = os.WriteFile(testFile, []byte(testContent), 0644)
+		err = os.WriteFile(testFile, []byte(testContent), 0600)
 		require.NoError(t, err)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"--volume", fmt.Sprintf("%s:/mnt/test", tmpDir),
 			"bash", "-c", "cat /mnt/test/test.txt | grep -q 'integration test'",
@@ -200,7 +200,7 @@ func TestWorkflow(t *testing.T) {
 	t.Run("with env vars", func(t *testing.T) {
 		identifiers := setup(t)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"--env", "CUSTOM_VAR=test123",
 			"bash", "-c", "test \"$CUSTOM_VAR\" = 'test123'",
@@ -240,7 +240,7 @@ func TestWorkflow(t *testing.T) {
 			preExisting[item.ID] = true
 		}
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", identifiers.Dockerfile,
 			"bash", "-c", "exit 42")
 		cmd.Dir = identifiers.RepositoryPath
@@ -280,7 +280,7 @@ func TestWorkflow(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			cmd := exec.Command(settings.Path,
+			cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 				"--dockerfile", identifiers.Dockerfile,
 				"bash", "-c", "echo test",
 			)
@@ -298,7 +298,7 @@ func TestWorkflow(t *testing.T) {
 		t.Run("when dockerfile is not specified", func(t *testing.T) {
 			identifiers := setup(t)
 
-			cmd := exec.Command(settings.Path,
+			cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 				"bash", "-c", "echo test",
 			)
 			cmd.Dir = identifiers.RepositoryPath

@@ -70,7 +70,7 @@ func (r *Runtime) CreateContainer(ctx context.Context, opts runtime.CreateContai
 		return nil, fmt.Errorf("failed to create container %q: %w", opts.SessionID, err)
 	}
 
-	return &Container{
+	return &Container{ //nolint:exhaustruct // started, process, readyRetries, readyBaseDelay set during lifecycle
 		name:        string(opts.SessionID),
 		cmd:         []string(opts.Args),
 		env:         []string(opts.Env),

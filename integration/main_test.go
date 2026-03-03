@@ -63,7 +63,7 @@ func BeforeSuite() error {
 
 	settings.Path = file.Name()
 
-	cmd := exec.Command("go", "build", "-o", settings.Path, "../.")
+	cmd := exec.Command("go", "build", "-o", settings.Path, "../.") //nolint:gosec // G204: Test with controlled input
 	err = cmd.Run()
 	if err != nil {
 		return err

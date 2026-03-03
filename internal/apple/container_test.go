@@ -28,7 +28,9 @@ func createTestContainer(t *testing.T, runner *mockRunner) runtime.Container {
 	})
 	require.NoError(t, err)
 	// Use fast timing for readiness checks in tests
-	container.(*apple.Container).SetReadyCheckTiming(10, 1*time.Millisecond)
+	ac, ok := container.(*apple.Container)
+	require.True(t, ok, "container should be *apple.Container type")
+	ac.SetReadyCheckTiming(10, 1*time.Millisecond)
 	// Reset calls so tests only see calls they care about
 	runner.calls = nil
 	return container
@@ -60,7 +62,7 @@ func TestContainerCopyTo(t *testing.T) {
 
 		// Third call: container exec tar
 		require.Equal(t, "container", runner.calls[3].Name)
-		require.Equal(t, runner.calls[3].Args, []string{"exec", "--interactive", "test-session", "tar", "xf", "-", "-C", "/"})
+		require.Equal(t, runner.calls[3].Args, []string{"exec", "--interactive", "test-session", "tar", "xf", "-", "-C", "/", "--warning", "no-timestamp"})
 	})
 
 	t.Run("only starts container once on multiple CopyTo calls", func(t *testing.T) {
@@ -130,7 +132,9 @@ func TestContainerCopyTo(t *testing.T) {
 			Args:      []string{"cmd"},
 		})
 		require.NoError(t, err)
-		container.(*apple.Container).SetReadyCheckTiming(10, 1*time.Millisecond)
+		ac, ok := container.(*apple.Container)
+		require.True(t, ok, "container should be *apple.Container type")
+		ac.SetReadyCheckTiming(10, 1*time.Millisecond)
 
 		err = container.CopyTo(context.Background(), bytes.NewReader(nil), "/")
 		require.NoError(t, err)
@@ -155,7 +159,9 @@ func TestContainerCopyTo(t *testing.T) {
 			Args:      []string{"cmd"},
 		})
 		require.NoError(t, err)
-		container.(*apple.Container).SetReadyCheckTiming(5, 1*time.Millisecond)
+		ac, ok := container.(*apple.Container)
+		require.True(t, ok, "container should be *apple.Container type")
+		ac.SetReadyCheckTiming(5, 1*time.Millisecond)
 
 		err = container.CopyTo(context.Background(), nil, "/")
 		require.Error(t, err)
@@ -181,7 +187,9 @@ func TestContainerCopyTo(t *testing.T) {
 			Args:      []string{"cmd"},
 		})
 		require.NoError(t, err)
-		container.(*apple.Container).SetReadyCheckTiming(10, 1*time.Millisecond)
+		ac, ok := container.(*apple.Container)
+		require.True(t, ok, "container should be *apple.Container type")
+		ac.SetReadyCheckTiming(10, 1*time.Millisecond)
 
 		err = container.CopyTo(context.Background(), nil, "/")
 		require.Error(t, err)

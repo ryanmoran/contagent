@@ -29,12 +29,12 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create some test files
 		testFile := filepath.Join(dir, "test.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte("test content\n"), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte("test content\n"), 0600))
 
 		subDir := filepath.Join(dir, "subdir")
 		require.NoError(t, os.MkdirAll(subDir, 0755))
 		subFile := filepath.Join(subDir, "nested.txt")
-		require.NoError(t, os.WriteFile(subFile, []byte("nested content\n"), 0644))
+		require.NoError(t, os.WriteFile(subFile, []byte("nested content\n"), 0600))
 
 		// Add and commit files
 		cmd = exec.Command("git", "add", ".")
@@ -77,7 +77,7 @@ func TestCreateArchive(t *testing.T) {
 
 			files[header.Name] = true
 
-			target := filepath.Join(extractDir, header.Name)
+			target := filepath.Join(extractDir, header.Name) //nolint:gosec // G305: Test file extraction
 			switch header.Typeflag {
 			case tar.TypeDir:
 				require.NoError(t, os.MkdirAll(target, os.FileMode(header.Mode)))
@@ -86,7 +86,7 @@ func TestCreateArchive(t *testing.T) {
 				require.NoError(t, os.MkdirAll(dir, 0755))
 				f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 				require.NoError(t, err)
-				_, err = io.Copy(f, tr)
+				_, err = io.Copy(f, tr) //nolint:gosec // G110: Test archive, not a decompression bomb
 				require.NoError(t, err)
 				f.Close()
 			}
@@ -160,7 +160,7 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create and commit a file
 		testFile := filepath.Join(dir, "file.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte("content\n"), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte("content\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -199,7 +199,7 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create a regular file
 		regularFile := filepath.Join(dir, "regular.txt")
-		require.NoError(t, os.WriteFile(regularFile, []byte("regular\n"), 0644))
+		require.NoError(t, os.WriteFile(regularFile, []byte("regular\n"), 0600))
 
 		// Create a symlink
 		symlinkPath := filepath.Join(dir, "link.txt")
@@ -253,12 +253,12 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create files in root and subdirectory
 		rootFile := filepath.Join(dir, "root.txt")
-		require.NoError(t, os.WriteFile(rootFile, []byte("root\n"), 0644))
+		require.NoError(t, os.WriteFile(rootFile, []byte("root\n"), 0600))
 
 		subDir := filepath.Join(dir, "sub")
 		require.NoError(t, os.MkdirAll(subDir, 0755))
 		subFile := filepath.Join(subDir, "sub.txt")
-		require.NoError(t, os.WriteFile(subFile, []byte("sub\n"), 0644))
+		require.NoError(t, os.WriteFile(subFile, []byte("sub\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -327,9 +327,9 @@ func TestCopyDirectory(t *testing.T) {
 		defer os.RemoveAll(src)
 
 		// Create test structure
-		require.NoError(t, os.WriteFile(filepath.Join(src, "file1.txt"), []byte("file1\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(src, "file1.txt"), []byte("file1\n"), 0600))
 		require.NoError(t, os.MkdirAll(filepath.Join(src, "subdir"), 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(src, "subdir", "file2.txt"), []byte("file2\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(src, "subdir", "file2.txt"), []byte("file2\n"), 0600))
 
 		// Create destination
 		dst, err := os.MkdirTemp("", "copy-dst")
@@ -350,7 +350,7 @@ func TestCopyDirectory(t *testing.T) {
 
 		// Add a file and commit
 		testFile := filepath.Join(gitDir, "test.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = gitDir
@@ -384,7 +384,7 @@ func TestCopyDirectory(t *testing.T) {
 				continue
 			}
 
-			target := filepath.Join(dstPath, header.Name)
+			target := filepath.Join(dstPath, header.Name) //nolint:gosec // G305: Test file extraction
 			switch header.Typeflag {
 			case tar.TypeDir:
 				require.NoError(t, os.MkdirAll(target, os.FileMode(header.Mode)))
@@ -393,7 +393,7 @@ func TestCopyDirectory(t *testing.T) {
 				require.NoError(t, os.MkdirAll(dir, 0755))
 				f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 				require.NoError(t, err)
-				_, err = io.Copy(f, tr)
+				_, err = io.Copy(f, tr) //nolint:gosec // G110: Test archive, not a decompression bomb
 				require.NoError(t, err)
 				f.Close()
 			}
@@ -424,7 +424,7 @@ func TestCopyDirectory(t *testing.T) {
 		// Create deeply nested structure
 		nested := filepath.Join(dir, "a", "b", "c", "d")
 		require.NoError(t, os.MkdirAll(nested, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(nested, "deep.txt"), []byte("deep\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(nested, "deep.txt"), []byte("deep\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -473,11 +473,11 @@ func TestCopyDirectory(t *testing.T) {
 
 		// Create executable file
 		execFile := filepath.Join(dir, "script.sh")
-		require.NoError(t, os.WriteFile(execFile, []byte("#!/bin/bash\necho test\n"), 0755))
+		require.NoError(t, os.WriteFile(execFile, []byte("#!/bin/bash\necho test\n"), 0755)) //nolint:gosec // G306: Testing executable permissions
 
 		// Create regular file
 		regularFile := filepath.Join(dir, "data.txt")
-		require.NoError(t, os.WriteFile(regularFile, []byte("data\n"), 0644))
+		require.NoError(t, os.WriteFile(regularFile, []byte("data\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -531,7 +531,7 @@ func TestCopyFile(t *testing.T) {
 
 		srcFile := filepath.Join(src, "source.txt")
 		content := "test file content\n"
-		require.NoError(t, os.WriteFile(srcFile, []byte(content), 0644))
+		require.NoError(t, os.WriteFile(srcFile, []byte(content), 0600))
 
 		dst, err := os.MkdirTemp("", "file-dst")
 		require.NoError(t, err)
@@ -548,7 +548,7 @@ func TestCopyFile(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		testFile := filepath.Join(gitDir, "test.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte(content), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = gitDir
@@ -585,7 +585,7 @@ func TestCopyFile(t *testing.T) {
 				target := filepath.Join(extractDir, "test.txt")
 				f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 				require.NoError(t, err)
-				_, err = io.Copy(f, tr)
+				_, err = io.Copy(f, tr) //nolint:gosec // G110: Test archive, not a decompression bomb
 				require.NoError(t, err)
 				f.Close()
 
@@ -613,7 +613,7 @@ func TestCopyFile(t *testing.T) {
 		nested := filepath.Join(dir, "parent", "child")
 		require.NoError(t, os.MkdirAll(nested, 0755))
 		testFile := filepath.Join(nested, "file.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte("content\n"), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte("content\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -664,7 +664,7 @@ func TestAddDirectoryToArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		testFile := filepath.Join(dir, "test.txt")
-		require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0644))
+		require.NoError(t, os.WriteFile(testFile, []byte("test\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir
@@ -714,7 +714,7 @@ func TestAddDirectoryToArchive(t *testing.T) {
 
 		nested := filepath.Join(dir, "a", "b", "c")
 		require.NoError(t, os.MkdirAll(nested, 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(nested, "file.txt"), []byte("content\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(nested, "file.txt"), []byte("content\n"), 0600))
 
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = dir

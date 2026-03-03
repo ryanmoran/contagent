@@ -16,15 +16,20 @@ import (
 )
 
 func main() {
+	var exitCode int
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("panic occurred: %v", r)
-			os.Exit(1)
+			exitCode = 1
+		}
+		if exitCode != 0 {
+			os.Exit(exitCode)
 		}
 	}()
 
 	if err := run(os.Args, os.Environ()); err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		exitCode = 1
 	}
 }
 

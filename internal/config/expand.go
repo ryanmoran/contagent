@@ -55,11 +55,11 @@ func expandHome(path string) string {
 	if !strings.HasPrefix(path, "~/") {
 		return path
 	}
-	
+
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		return path
 	}
-	
+
 	return filepath.Join(home, path[2:])
 }

@@ -5,11 +5,12 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/cgi"
+	"net/http/cgi" //nolint:gosec // G504: CVE-2016-5386 only affects Go < 1.6.3, we use Go 1.26
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/ryanmoran/contagent/internal"
 )
@@ -75,7 +76,8 @@ func NewServer(path string, w internal.Writer) (Server, error) {
 	})
 
 	server := &http.Server{
-		Handler: mux,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
 	go func() {

@@ -26,14 +26,14 @@ func TestConfigFileLoading(t *testing.T) {
 
 		// Create a simple Dockerfile
 		dockerfilePath := filepath.Join(dir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0600)
 		require.NoError(t, err)
 
 		// Create config file if provided
 		var configPath string
 		if configContent != "" {
 			configPath = filepath.Join(dir, ".contagent.yaml")
-			err = os.WriteFile(configPath, []byte(configContent), 0644)
+			err = os.WriteFile(configPath, []byte(configContent), 0600)
 			require.NoError(t, err)
 		}
 
@@ -80,7 +80,7 @@ working_dir: /workspace
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -101,7 +101,7 @@ env:
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -122,7 +122,7 @@ env:
 		})
 
 		testFile := filepath.Join(tmpDir, "test.txt")
-		err = os.WriteFile(testFile, []byte("config test content"), 0644)
+		err = os.WriteFile(testFile, []byte("config test content"), 0600)
 		require.NoError(t, err)
 
 		configContent := fmt.Sprintf(`
@@ -131,7 +131,7 @@ volumes:
 `, tmpDir)
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/config-volume/test.txt")
 		cmd.Dir = testSetup.RepositoryPath
@@ -151,7 +151,7 @@ env:
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"--env", "TEST_VAR=from_cli",
 			"bash", "-c", "exit 0")
@@ -172,7 +172,7 @@ env:
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"--env", "CLI_VAR=from_cli",
 			"bash", "-c", "exit 0")
@@ -189,7 +189,7 @@ env:
 	t.Run("works without config file (defaults only)", func(t *testing.T) {
 		testSetup := setup(t, "") // No config file
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -215,12 +215,12 @@ env:
 env:
   PARENT_CONFIG: from_parent
 `
-		err = os.WriteFile(configPath, []byte(configContent), 0644)
+		err = os.WriteFile(configPath, []byte(configContent), 0600)
 		require.NoError(t, err)
 
 		// Create Dockerfile in root
 		dockerfilePath := filepath.Join(dir, "Dockerfile")
-		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0644)
+		err = os.WriteFile(dockerfilePath, []byte("FROM ubuntu:25.10\nRUN mkdir -p /app && mkdir -p /workspace\n"), 0600)
 		require.NoError(t, err)
 
 		// Initialize git repository in root
@@ -258,7 +258,7 @@ env:
 		// Run from root git directory, but the working directory
 		// (current directory used by config loading) will be the subdirectory
 		// This tests that FindProjectConfig walks up the directory tree
-		cmd = exec.Command(settings.Path,
+		cmd = exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", dockerfilePath,
 			"bash", "-c", "exit 0")
 		cmd.Dir = dir // Run from git root, not subDir
@@ -279,7 +279,7 @@ env:
 		})
 
 		testFile := filepath.Join(tmpDir, "test.txt")
-		err = os.WriteFile(testFile, []byte("expanded content"), 0644)
+		err = os.WriteFile(testFile, []byte("expanded content"), 0600)
 		require.NoError(t, err)
 
 		configContent := `
@@ -290,7 +290,7 @@ volumes:
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/test/test.txt")
 		cmd.Dir = testSetup.RepositoryPath
@@ -317,12 +317,12 @@ volumes:
 env:
   GLOBAL_VAR: from_global_config
 `
-		err = os.WriteFile(globalConfigPath, []byte(globalConfigContent), 0644)
+		err = os.WriteFile(globalConfigPath, []byte(globalConfigContent), 0600)
 		require.NoError(t, err)
 
 		testSetup := setup(t, "")
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -349,7 +349,7 @@ env:
 env:
   SHARED_VAR: from_global
 `
-		err = os.WriteFile(globalConfigPath, []byte(globalConfigContent), 0644)
+		err = os.WriteFile(globalConfigPath, []byte(globalConfigContent), 0600)
 		require.NoError(t, err)
 
 		// Create project config that overrides
@@ -359,7 +359,7 @@ env:
 `
 		testSetup := setup(t, projectConfigContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -382,7 +382,7 @@ git:
 `
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "exit 0")
 		cmd.Dir = testSetup.RepositoryPath
@@ -403,7 +403,7 @@ git:
 		})
 
 		testFile := filepath.Join(tmpDir, "data.txt")
-		err = os.WriteFile(testFile, []byte("complex test data"), 0644)
+		err = os.WriteFile(testFile, []byte("complex test data"), 0600)
 		require.NoError(t, err)
 
 		configContent := fmt.Sprintf(`
@@ -420,7 +420,7 @@ volumes:
 `, tmpDir)
 		testSetup := setup(t, configContent)
 
-		cmd := exec.Command(settings.Path,
+		cmd := exec.Command(settings.Path, //nolint:gosec // G204: Test with controlled input
 			"--dockerfile", testSetup.Dockerfile,
 			"bash", "-c", "test -f /mnt/data/data.txt")
 		cmd.Dir = testSetup.RepositoryPath
