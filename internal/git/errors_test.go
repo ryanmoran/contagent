@@ -94,13 +94,13 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "failed to get git root path")
 		})
 
 		t.Run("non-existent directory", func(t *testing.T) {
-			_, err := git.CreateArchive("/nonexistent/path", "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			_, err := git.CreateArchive("/nonexistent/path", "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "failed to get git root path")
 		})
@@ -115,7 +115,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			cmd.Dir = dir
 			require.NoError(t, cmd.Run())
 
-			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err) // Returns immediately
 			if reader != nil {
 				defer reader.Close()
@@ -169,7 +169,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 				}
 			})
 
-			_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.Error(t, err)
 		})
 
@@ -203,7 +203,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 
 			// Git accepts most URLs, but we test that it doesn't fail during archive creation
 			// The URL validation happens when actually using the remote
-			reader, err := git.CreateArchive(dir, "not-a-valid-url", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "not-a-valid-url", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err) // Archive creation succeeds even with invalid URL
 			if reader != nil {
 				reader.Close()
@@ -239,7 +239,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Try to create archive with invalid branch name (contains spaces)
-			reader, err := git.CreateArchive(dir, "http://example.com", "invalid branch name", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "invalid branch name", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			if err == nil && reader != nil {
 				defer reader.Close()
 				// Error may occur when reading
@@ -282,7 +282,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Empty user name and email are technically valid in git
-			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "", "", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "", "", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err)
 			if reader != nil {
 				reader.Close()
@@ -323,7 +323,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Archive will fail because it tries to create a branch that already exists in the copied .git
-			reader, err := git.CreateArchive(dir, "http://example.com", "test-branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "test-branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			if err == nil && reader != nil {
 				defer reader.Close()
 				// Error may occur during read
@@ -372,7 +372,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Archive should still work with detached HEAD
-			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err)
 			if reader != nil {
 				defer reader.Close()
@@ -413,7 +413,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, os.WriteFile(testFile, []byte("uncommitted\n"), 0600))
 
 			// Archive should only include committed content (archives HEAD, not working tree)
-			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err)
 			require.NotNil(t, reader)
 			reader.Close()
@@ -447,7 +447,7 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, cmd.Run())
 
 			// Archive should handle repos with .gitmodules (even if submodules not initialized)
-			reader, err := git.CreateArchive(mainDir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+			reader, err := git.CreateArchive(mainDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 			require.NoError(t, err)
 			if reader != nil {
 				reader.Close()

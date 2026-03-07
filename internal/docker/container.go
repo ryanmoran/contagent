@@ -33,6 +33,23 @@ type Container struct {
 	RetryDelay  time.Duration
 }
 
+// InspectUser returns the default user for the container's image by inspecting the container
+// config. If the user is specified as a name rather than a numeric ID, it resolves the name
+// via /etc/passwd and /etc/group copied from the stopped container.
+func (c Container) InspectUser(ctx context.Context) (runtime.ImageUser, error) {
+	result, err := c.client.ContainerInspect(ctx, c.ID, client.ContainerInspectOptions{})
+	if err != nil {
+		return runtime.ImageUser{}, fmt.Errorf("failed to inspect container %q: %w", c.Name, err)
+	}
+
+	var userStr string
+	if result.Container.Config != nil {
+		userStr = result.Container.Config.User
+	}
+
+	return resolveImageUser(ctx, c.client, c.ID, userStr)
+}
+
 // Start starts the container. Returns an error if the container fails to start,
 // which may indicate a misconfiguration or an unhealthy Docker daemon.
 func (c Container) Start(ctx context.Context) error {

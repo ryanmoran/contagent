@@ -13,6 +13,12 @@ type Image struct {
 	Name string
 }
 
+// ImageUser represents the default user for a container image.
+type ImageUser struct {
+	UID int
+	GID int
+}
+
 // CreateContainerOptions bundles the configuration for creating a container.
 type CreateContainerOptions struct {
 	SessionID   internal.SessionID
@@ -37,6 +43,7 @@ type Runtime interface {
 
 // Container is the interface for interacting with a container.
 type Container interface {
+	InspectUser(ctx context.Context) (ImageUser, error)
 	CopyTo(ctx context.Context, content io.Reader, path string) error
 	Start(ctx context.Context) error
 	Attach(ctx context.Context, w internal.Writer) error

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ryanmoran/contagent/internal"
@@ -19,10 +20,18 @@ import (
 // configures the remote, creates a new branch, and archives the .git directory and all tracked
 // files. The git user name and email are configured in the temporary repository.
 //
+// uid and gid are applied to all tar headers so that extracted files are owned by the correct
+// container user.
+//
+// When destDir is non-empty, all archive paths are prefixed with destDir and a root directory
+// entry is written first. This allows copying to the parent directory so Docker creates destDir
+// as a new entry with the correct uid/gid ownership, rather than copying into an already-existing
+// root-owned directory.
+//
 // Returns an io.ReadCloser that streams the tar archive. The caller must close it to clean up
 // resources. Returns an error if the Git root cannot be determined, the temporary directory cannot
 // be created, .git copying fails, git operations fail, or archive creation fails.
-func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w internal.Writer) (io.ReadCloser, error) {
+func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, uid, gid int, destDir string, w internal.Writer) (io.ReadCloser, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	cmd.Dir = path
 	output, err := cmd.Output()
@@ -100,7 +109,27 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			return fmt.Errorf("failed to create and checkout branch %q: %w\nBranch may already exist", branch, err)
 		}
 
-		if err := addDirectoryToArchive(tw, dst, ".git"); err != nil {
+		prefix := func(name string) string {
+			if destDir == "" {
+				return name
+			}
+			return destDir + "/" + name
+		}
+
+		if destDir != "" {
+			rootHeader := &tar.Header{
+				Name:     destDir + "/",
+				Mode:     0755,
+				Typeflag: tar.TypeDir,
+				Uid:      uid,
+				Gid:      gid,
+			}
+			if err := tw.WriteHeader(rootHeader); err != nil {
+				return fmt.Errorf("failed to write root directory header: %w", err)
+			}
+		}
+
+		if err := addDirectoryToArchive(tw, dst, prefix(".git"), uid, gid); err != nil {
 			return fmt.Errorf("failed to add .git directory: %w", err)
 		}
 
@@ -111,13 +140,61 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			return fmt.Errorf("failed to list git tracked files: %w\nRepository may be corrupted", err)
 		}
 
+		// Collect file paths and all unique parent directories
+		var filePaths []string
+		dirsSeen := make(map[string]bool)
+		var sortedDirs []string
+
 		scanner := bufio.NewScanner(strings.NewReader(string(output)))
 		for scanner.Scan() {
 			relPath := scanner.Text()
 			if relPath == "" {
 				continue
 			}
+			filePaths = append(filePaths, relPath)
 
+			// Collect all parent directories of this file
+			dir := filepath.Dir(relPath)
+			for dir != "." && dir != "/" {
+				dirPath := strings.ReplaceAll(dir, "\\", "/")
+				if !dirsSeen[dirPath] {
+					dirsSeen[dirPath] = true
+					sortedDirs = append(sortedDirs, dirPath)
+				}
+				dir = filepath.Dir(dir)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("error reading git file list: %w", err)
+		}
+
+		// Sort so parent directories come before their children
+		sort.Strings(sortedDirs)
+
+		// Write directory headers first so they have proper permissions when extracted
+		for _, dirPath := range sortedDirs {
+			fullPath := filepath.Join(tempRoot, dirPath)
+			info, err := os.Lstat(fullPath) //nolint:gosec // path is constructed from a controlled temp root
+			if err != nil {
+				continue
+			}
+
+			header := &tar.Header{
+				Name:     prefix(dirPath) + "/",
+				Mode:     int64(info.Mode()),
+				ModTime:  info.ModTime(),
+				Typeflag: tar.TypeDir,
+				Uid:      uid,
+				Gid:      gid,
+			}
+			if err := tw.WriteHeader(header); err != nil {
+				return fmt.Errorf("failed to write directory header for %s: %w", dirPath, err)
+			}
+		}
+
+		// Write tracked files
+		for _, relPath := range filePaths {
 			fullPath := filepath.Join(tempRoot, relPath)
 			info, err := os.Lstat(fullPath) //nolint:gosec // path is constructed from a controlled temp root
 			if err != nil {
@@ -129,41 +206,31 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			}
 
 			if info.IsDir() {
-				header := &tar.Header{
-					Name:     relPath + "/",
-					Mode:     int64(info.Mode()),
-					ModTime:  info.ModTime(),
-					Typeflag: tar.TypeDir,
-				}
-				if err := tw.WriteHeader(header); err != nil {
-					return fmt.Errorf("failed to write directory header for %s: %w", relPath, err)
-				}
-			} else {
-				file, err := os.Open(fullPath) //nolint:gosec // path is constructed from a controlled temp root
-				if err != nil {
-					return fmt.Errorf("failed to open tracked file %q: %w\nFile may have been deleted", relPath, err)
-				}
-				defer file.Close()
-
-				header := &tar.Header{
-					Name:    relPath,
-					Mode:    int64(info.Mode()),
-					Size:    info.Size(),
-					ModTime: info.ModTime(),
-				}
-
-				if err := tw.WriteHeader(header); err != nil {
-					return fmt.Errorf("failed to write header for %s: %w", relPath, err)
-				}
-
-				if _, err := io.Copy(tw, file); err != nil {
-					return fmt.Errorf("failed to write file %s: %w", relPath, err)
-				}
+				continue
 			}
-		}
 
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("error reading git file list: %w", err)
+			file, err := os.Open(fullPath) //nolint:gosec // path is constructed from a controlled temp root
+			if err != nil {
+				return fmt.Errorf("failed to open tracked file %q: %w\nFile may have been deleted", relPath, err)
+			}
+			defer file.Close()
+
+			header := &tar.Header{
+				Name:    prefix(relPath),
+				Mode:    int64(info.Mode()),
+				Size:    info.Size(),
+				ModTime: info.ModTime(),
+				Uid:     uid,
+				Gid:     gid,
+			}
+
+			if err := tw.WriteHeader(header); err != nil {
+				return fmt.Errorf("failed to write header for %s: %w", relPath, err)
+			}
+
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write file %s: %w", relPath, err)
+			}
 		}
 
 		return nil
@@ -201,7 +268,7 @@ func (a *archiveCloser) Close() error {
 	return a.pr.Close()
 }
 
-func addDirectoryToArchive(tw *tar.Writer, srcDir, tarPath string) error {
+func addDirectoryToArchive(tw *tar.Writer, srcDir, tarPath string, uid, gid int) error {
 	return filepath.Walk(srcDir, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -225,6 +292,8 @@ func addDirectoryToArchive(tw *tar.Writer, srcDir, tarPath string) error {
 				Mode:     int64(info.Mode()),
 				ModTime:  info.ModTime(),
 				Typeflag: tar.TypeDir,
+				Uid:      uid,
+				Gid:      gid,
 			}
 			return tw.WriteHeader(header)
 		} else {
@@ -239,6 +308,8 @@ func addDirectoryToArchive(tw *tar.Writer, srcDir, tarPath string) error {
 				Mode:    int64(info.Mode()),
 				Size:    info.Size(),
 				ModTime: info.ModTime(),
+				Uid:     uid,
+				Gid:     gid,
 			}
 
 			if err := tw.WriteHeader(header); err != nil {

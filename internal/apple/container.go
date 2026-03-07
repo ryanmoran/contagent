@@ -1,12 +1,14 @@
 package apple
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +36,51 @@ type Container struct {
 	process        Process
 	readyRetries   int
 	readyBaseDelay time.Duration
+}
+
+// InspectUser returns the uid and gid of the container's default user.
+// It starts the container if not already running, then execs `id -u` and `id -g`.
+func (c *Container) InspectUser(ctx context.Context) (runtime.ImageUser, error) {
+	if !c.started {
+		err := c.runner.Run(ctx, nil, os.Stdout, os.Stderr,
+			"container", "start", c.name,
+		)
+		if err != nil {
+			return runtime.ImageUser{}, fmt.Errorf("failed to start container %q for user inspection: %w", c.name, err)
+		}
+
+		if err := c.waitForRunning(ctx); err != nil {
+			return runtime.ImageUser{}, fmt.Errorf("container %q failed to become ready for user inspection: %w", c.name, err)
+		}
+
+		c.started = true
+	}
+
+	var uidBuf, gidBuf bytes.Buffer
+
+	if err := c.runner.Run(ctx, nil, &uidBuf, os.Stderr,
+		"container", "exec", c.name, "id", "-u",
+	); err != nil {
+		return runtime.ImageUser{}, fmt.Errorf("failed to get uid from container %q: %w", c.name, err)
+	}
+
+	if err := c.runner.Run(ctx, nil, &gidBuf, os.Stderr,
+		"container", "exec", c.name, "id", "-g",
+	); err != nil {
+		return runtime.ImageUser{}, fmt.Errorf("failed to get gid from container %q: %w", c.name, err)
+	}
+
+	uid, err := strconv.Atoi(strings.TrimSpace(uidBuf.String()))
+	if err != nil {
+		return runtime.ImageUser{}, fmt.Errorf("unexpected output from id -u in container %q: %w", c.name, err)
+	}
+
+	gid, err := strconv.Atoi(strings.TrimSpace(gidBuf.String()))
+	if err != nil {
+		return runtime.ImageUser{}, fmt.Errorf("unexpected output from id -g in container %q: %w", c.name, err)
+	}
+
+	return runtime.ImageUser{UID: uid, GID: gid}, nil
 }
 
 // CopyTo starts the container and copies content via `container exec tar`.
