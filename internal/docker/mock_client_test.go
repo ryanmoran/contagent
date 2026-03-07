@@ -11,18 +11,20 @@ import (
 
 // mockDockerClient is a mock implementation of docker.DockerClient for testing
 type mockDockerClient struct {
-	imageBuildFunc      func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error)
-	containerCreateFunc func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error)
-	containerStartFunc  func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error)
-	containerAttachFunc func(ctx context.Context, containerID string, options client.ContainerAttachOptions) (client.ContainerAttachResult, error)
-	containerWaitFunc   func(ctx context.Context, containerID string, options client.ContainerWaitOptions) client.ContainerWaitResult
-	containerStopFunc   func(ctx context.Context, containerID string, options client.ContainerStopOptions) (client.ContainerStopResult, error)
-	containerRemoveFunc func(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error)
-	containerResizeFunc func(ctx context.Context, containerID string, options client.ContainerResizeOptions) (client.ContainerResizeResult, error)
-	copyToContainerFunc func(ctx context.Context, containerID string, options client.CopyToContainerOptions) (client.CopyToContainerResult, error)
-	pingFunc            func(ctx context.Context, options client.PingOptions) (client.PingResult, error)
-	containerListFunc   func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error)
-	closeFunc           func() error
+	imageBuildFunc        func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error)
+	containerInspectFunc  func(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error)
+	containerCreateFunc   func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error)
+	copyFromContainerFunc func(ctx context.Context, containerID string, options client.CopyFromContainerOptions) (client.CopyFromContainerResult, error)
+	containerStartFunc    func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error)
+	containerAttachFunc   func(ctx context.Context, containerID string, options client.ContainerAttachOptions) (client.ContainerAttachResult, error)
+	containerWaitFunc     func(ctx context.Context, containerID string, options client.ContainerWaitOptions) client.ContainerWaitResult
+	containerStopFunc     func(ctx context.Context, containerID string, options client.ContainerStopOptions) (client.ContainerStopResult, error)
+	containerRemoveFunc   func(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error)
+	containerResizeFunc   func(ctx context.Context, containerID string, options client.ContainerResizeOptions) (client.ContainerResizeResult, error)
+	copyToContainerFunc   func(ctx context.Context, containerID string, options client.CopyToContainerOptions) (client.CopyToContainerResult, error)
+	pingFunc              func(ctx context.Context, options client.PingOptions) (client.PingResult, error)
+	containerListFunc     func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error)
+	closeFunc             func() error
 }
 
 func (m *mockDockerClient) ImageBuild(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error) {
@@ -30,6 +32,13 @@ func (m *mockDockerClient) ImageBuild(ctx context.Context, buildContext io.Reade
 		return m.imageBuildFunc(ctx, buildContext, options)
 	}
 	return client.ImageBuildResult{}, errors.New("not implemented")
+}
+
+func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
+	if m.containerInspectFunc != nil {
+		return m.containerInspectFunc(ctx, containerID, options)
+	}
+	return client.ContainerInspectResult{}, errors.New("not implemented")
 }
 
 func (m *mockDockerClient) ContainerCreate(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error) {
@@ -89,6 +98,13 @@ func (m *mockDockerClient) CopyToContainer(ctx context.Context, containerID stri
 		return m.copyToContainerFunc(ctx, containerID, options)
 	}
 	return client.CopyToContainerResult{}, errors.New("not implemented")
+}
+
+func (m *mockDockerClient) CopyFromContainer(ctx context.Context, containerID string, options client.CopyFromContainerOptions) (client.CopyFromContainerResult, error) {
+	if m.copyFromContainerFunc != nil {
+		return m.copyFromContainerFunc(ctx, containerID, options)
+	}
+	return client.CopyFromContainerResult{}, errors.New("not implemented")
 }
 
 func (m *mockDockerClient) Ping(ctx context.Context, options client.PingOptions) (client.PingResult, error) {

@@ -57,7 +57,7 @@ func TestCreateArchive(t *testing.T) {
 		userName := "Archive User"
 		userEmail := "archive@example.com"
 
-		reader, err := git.CreateArchive(dir, remote, branch, userName, userEmail, internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, remote, branch, userName, userEmail, 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -95,8 +95,7 @@ func TestCreateArchive(t *testing.T) {
 		// Verify expected files are in archive
 		require.True(t, files[".git/"], "should contain .git/ directory")
 		require.True(t, files["test.txt"], "should contain test.txt")
-		// Note: subdirectories are not explicitly added unless they contain files
-		// tar will create them automatically when extracting files
+		require.True(t, files["subdir/"], "should contain subdir/ directory header")
 		require.True(t, files["subdir/nested.txt"], "should contain subdir/nested.txt")
 
 		// Verify file contents
@@ -151,7 +150,7 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.ErrorContains(t, err, "failed to get git root path")
 	})
 
@@ -185,7 +184,7 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create archive should succeed
 		remote := "http://example.com/repo.git"
-		reader, err := git.CreateArchive(dir, remote, "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, remote, "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -228,7 +227,7 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -282,7 +281,7 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive from subdirectory
-		reader, err := git.CreateArchive(subDir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(subDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -313,7 +312,7 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive from empty repo - returns reader but will error when reading
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		// CreateArchive returns immediately with a reader, error happens in goroutine
 		require.NoError(t, err)
 		if reader != nil {
@@ -374,7 +373,7 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive (this will internally use copyDirectory)
-		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -448,7 +447,7 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -501,7 +500,7 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -571,7 +570,7 @@ func TestCopyFile(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -636,7 +635,7 @@ func TestCopyFile(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -655,6 +654,196 @@ func TestCopyFile(t *testing.T) {
 			}
 		}
 		require.True(t, found, "should contain nested file")
+	})
+}
+
+func TestArchiveOwnership(t *testing.T) {
+	t.Run("all tar headers have uid and gid set to 1001", func(t *testing.T) {
+		dir, err := os.MkdirTemp("", "git-ownership-test")
+		require.NoError(t, err)
+		defer os.RemoveAll(dir)
+
+		cmd := exec.Command("git", "init")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		// Create files and subdirectories
+		subDir := filepath.Join(dir, "subdir")
+		require.NoError(t, os.MkdirAll(subDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root\n"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested\n"), 0600))
+
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		cmd = exec.Command("git", "commit", "-m", "commit")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test User",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test User",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		require.NoError(t, cmd.Run())
+
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		require.NoError(t, err)
+		defer reader.Close()
+
+		tr := tar.NewReader(reader)
+		count := 0
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+			count++
+			require.Equal(t, 1001, header.Uid, "header %q should have Uid 1001", header.Name)
+			require.Equal(t, 1001, header.Gid, "header %q should have Gid 1001", header.Name)
+		}
+		require.Greater(t, count, 0, "archive should contain at least one entry")
+	})
+
+	t.Run("tracked file headers have uid and gid 1001", func(t *testing.T) {
+		dir, err := os.MkdirTemp("", "git-file-ownership-test")
+		require.NoError(t, err)
+		defer os.RemoveAll(dir)
+
+		cmd := exec.Command("git", "init")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content\n"), 0600))
+
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		cmd = exec.Command("git", "commit", "-m", "commit")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test User",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test User",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		require.NoError(t, cmd.Run())
+
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		require.NoError(t, err)
+		defer reader.Close()
+
+		tr := tar.NewReader(reader)
+		found := false
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+			if header.Name == "file.txt" {
+				found = true
+				require.Equal(t, 1001, header.Uid, "tracked file should have Uid 1001")
+				require.Equal(t, 1001, header.Gid, "tracked file should have Gid 1001")
+			}
+		}
+		require.True(t, found, "file.txt should be in the archive")
+	})
+
+	t.Run("tracked directory headers have uid and gid 1001", func(t *testing.T) {
+		dir, err := os.MkdirTemp("", "git-dir-ownership-test")
+		require.NoError(t, err)
+		defer os.RemoveAll(dir)
+
+		cmd := exec.Command("git", "init")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		subDir := filepath.Join(dir, "mydir")
+		require.NoError(t, os.MkdirAll(subDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("content\n"), 0600))
+
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		cmd = exec.Command("git", "commit", "-m", "commit")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test User",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test User",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		require.NoError(t, cmd.Run())
+
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		require.NoError(t, err)
+		defer reader.Close()
+
+		tr := tar.NewReader(reader)
+		found := false
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+			if header.Name == "mydir/" {
+				found = true
+				require.Equal(t, 1001, header.Uid, "tracked directory should have Uid 1001")
+				require.Equal(t, 1001, header.Gid, "tracked directory should have Gid 1001")
+			}
+		}
+		require.True(t, found, "mydir/ directory header should be in the archive")
+	})
+
+	t.Run(".git directory entries have uid and gid 1001", func(t *testing.T) {
+		dir, err := os.MkdirTemp("", "git-dot-git-ownership-test")
+		require.NoError(t, err)
+		defer os.RemoveAll(dir)
+
+		cmd := exec.Command("git", "init")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content\n"), 0600))
+
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = dir
+		require.NoError(t, cmd.Run())
+
+		cmd = exec.Command("git", "commit", "-m", "commit")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test User",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test User",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		require.NoError(t, cmd.Run())
+
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		require.NoError(t, err)
+		defer reader.Close()
+
+		tr := tar.NewReader(reader)
+		gitEntries := 0
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+			if strings.HasPrefix(header.Name, ".git/") {
+				gitEntries++
+				require.Equal(t, 1001, header.Uid, ".git entry %q should have Uid 1001", header.Name)
+				require.Equal(t, 1001, header.Gid, ".git entry %q should have Gid 1001", header.Name)
+			}
+		}
+		require.Greater(t, gitEntries, 0, "archive should contain .git entries")
 	})
 }
 
@@ -687,7 +876,7 @@ func TestAddDirectoryToArchive(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -737,7 +926,7 @@ func TestAddDirectoryToArchive(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 

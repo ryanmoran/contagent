@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/ryanmoran/contagent/internal"
@@ -119,12 +120,20 @@ func run(args, env []string) error {
 		return container.ForceRemove(ctx)
 	})
 
+	imageUser, err := container.InspectUser(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to inspect user for image %q: %w", image.Name, err)
+	}
+
 	archive, err := git.CreateArchive(
 		workingDirectory,
 		fmt.Sprintf("http://%s:%d", rt.HostAddress(), remote.Port()),
 		session.Branch(),
 		config.GitUser.Name,
 		config.GitUser.Email,
+		imageUser.UID,
+		imageUser.GID,
+		filepath.Base(config.WorkingDir),
 		w,
 	)
 	if err != nil {
@@ -132,7 +141,7 @@ func run(args, env []string) error {
 	}
 	cleanup.Add("archive", archive.Close)
 
-	err = container.CopyTo(ctx, archive, config.WorkingDir)
+	err = container.CopyTo(ctx, archive, filepath.Dir(config.WorkingDir))
 	if err != nil {
 		return fmt.Errorf("failed to copy git archive to container %q: %w", session.ID(), err)
 	}
