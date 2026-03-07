@@ -137,6 +137,13 @@ func TestCreateArchive(t *testing.T) {
 		output, err = cmd.Output()
 		require.NoError(t, err)
 		require.Equal(t, userEmail, strings.TrimSpace(string(output)))
+
+		// Check push.autoSetupRemote
+		cmd = exec.Command("git", "config", "push.autoSetupRemote")
+		cmd.Dir = appDir
+		output, err = cmd.Output()
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(output)))
 	})
 
 	t.Run("fails on non-git directory", func(t *testing.T) {

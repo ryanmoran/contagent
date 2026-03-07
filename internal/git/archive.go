@@ -86,6 +86,13 @@ func CreateArchive(path, remote, branch, gitUserName, gitUserEmail string, w int
 			return fmt.Errorf("failed to configure git user.name to %q: %w", gitUserName, err)
 		}
 
+		cmd = exec.Command("git", "config", "push.autoSetupRemote", "true")
+		cmd.Dir = tempRoot
+		err = cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to configure git push.autoSetupRemote: %w", err)
+		}
+
 		cmd = exec.Command("git", "checkout", "-b", branch)
 		cmd.Dir = tempRoot
 		err = cmd.Run()
