@@ -19,7 +19,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Empty(t, config.Args)
 			require.NotEmpty(t, config.Env) // Should still have default env
@@ -29,12 +29,12 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"some-command"}
 			env := []string{}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-command"}), config.Args)
 			// Should have default values for missing env vars
 			require.Contains(t, config.Env, "COLORTERM=truecolor")
-			require.Contains(t, config.Env, "ANTHROPIC_API_KEY=")
+			require.NotContains(t, config.Env, "ANTHROPIC_API_KEY=")
 		})
 
 		t.Run("only flags, no command", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Empty(t, config.Args) // No command after flags
 			require.Equal(t, []string{
@@ -58,7 +58,7 @@ func TestConfigErrorCases(t *testing.T) {
 			env := []string{"TERM=xterm"}
 
 			// ParseConfig doesn't validate format, just passes through
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			// "some-command" is treated as the value for --env
 			// Next arg would be the command, but there isn't one
@@ -69,7 +69,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"--env", "VARVALUE", "command"}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			// VARVALUE is not added to env because it lacks '='
@@ -85,7 +85,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			// "command" is treated as volume value
 			require.Empty(t, config.Args)
@@ -106,7 +106,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"cmd", "arg1", "arg2"}), config.Args)
 			require.Contains(t, config.Env, "VAR1=val1")
@@ -122,7 +122,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"--env", "VAR=val", "--", "--command-with-dashes", "--flag"}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			// Without special handling of --, all args after VAR=val become the command
 			// The behavior depends on implementation
@@ -138,7 +138,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			require.Contains(t, config.Env, "VAR=value with spaces")
@@ -150,7 +150,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"--env", "EMPTY=", "command"}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			require.Contains(t, config.Env, "EMPTY=")
@@ -164,7 +164,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			// Both are added to the list (behavior may vary)
@@ -179,7 +179,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"--env", "TERM=override", "command"}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			// Both TERM values might be present
@@ -193,7 +193,7 @@ func TestConfigErrorCases(t *testing.T) {
 			}
 			env := []string{"TERM=xterm"}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Len(t, config.Args, 1001)
 		})
@@ -202,7 +202,7 @@ func TestConfigErrorCases(t *testing.T) {
 			args := []string{"command"}
 			env := []string{} // No TERM, COLORTERM, or ANTHROPIC_API_KEY
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"command"}), config.Args)
 			// Should provide defaults for missing values

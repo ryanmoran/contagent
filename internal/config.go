@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	goruntime "runtime"
 	"strings"
@@ -53,12 +52,7 @@ type GitUserConfig struct {
 // the configuration for running a container. It uses the new config package to load
 // and merge configuration from multiple sources (defaults, config files, CLI flags).
 // Returns an error if config loading fails (e.g., invalid config file, bad flags).
-func ParseConfig(args []string, environment []string) (Config, error) {
-	startDir, err := os.Getwd()
-	if err != nil {
-		startDir = "."
-	}
-
+func ParseConfig(args []string, environment []string, startDir string) (Config, error) {
 	// Use the new config package to load and parse configuration
 	cfg, programArgs, err := config.Load(args, environment, startDir)
 	if err != nil {
@@ -152,8 +146,9 @@ func buildEnvironment(environment []string, configEnv map[string]string, rt stri
 	env = append(env, fmt.Sprintf("COLORTERM=%s", value))
 
 	// Add ANTHROPIC_API_KEY if present
-	value = lookup["ANTHROPIC_API_KEY"]
-	env = append(env, fmt.Sprintf("ANTHROPIC_API_KEY=%s", value))
+	if value := lookup["ANTHROPIC_API_KEY"]; value != "" {
+		env = append(env, fmt.Sprintf("ANTHROPIC_API_KEY=%s", value))
+	}
 
 	// Set SSH_AUTH_SOCK for Docker runtime only (Apple uses --ssh flag natively)
 	if rt == "docker" {

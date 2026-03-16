@@ -29,7 +29,7 @@ func TestTTYResizeWithMock(t *testing.T) {
 		out := streams.NewOut(nil)
 		writer := newMockWriter()
 
-		tty := docker.NewTTY(mock, out, "container123", 5, 100*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", 5, 100*time.Millisecond, writer, func() {})
 		ctx := context.Background()
 
 		// Resize will return nil if height and width are 0 (terminal not detected)
@@ -51,7 +51,7 @@ func TestTTYResizeWithMock(t *testing.T) {
 		out := streams.NewOut(nil)
 		writer := newMockWriter()
 
-		tty := docker.NewTTY(mock, out, "container123", 5, 100*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", 5, 100*time.Millisecond, writer, func() {})
 		ctx := context.Background()
 
 		// In test environment, this will return nil because TTY size is 0x0
@@ -72,11 +72,11 @@ func TestTTYMonitorWithMock(t *testing.T) {
 		out := streams.NewOut(nil)
 		writer := newMockWriter()
 
-		tty := docker.NewTTY(mock, out, "container123", 5, 10*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", 5, 10*time.Millisecond, writer, func() {})
 		ctx := context.Background()
 
 		// Monitor starts a goroutine and returns immediately
-		err := tty.Monitor(ctx)
+		err := tty.Monitor(ctx, func() {})
 		require.NoError(t, err)
 
 		// Give the retry goroutine time to start
@@ -98,10 +98,10 @@ func TestTTYMonitorWithMock(t *testing.T) {
 		out := streams.NewOut(nil)
 		writer := newMockWriter()
 
-		tty := docker.NewTTY(mock, out, "container123", 5, 10*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", 5, 10*time.Millisecond, writer, func() {})
 		ctx := context.Background()
 
-		err := tty.Monitor(ctx)
+		err := tty.Monitor(ctx, func() {})
 		require.NoError(t, err)
 
 		// Give the retry goroutine time to complete
@@ -121,10 +121,10 @@ func TestTTYMonitorWithMock(t *testing.T) {
 		writer := newMockWriter()
 
 		maxRetries := 3
-		tty := docker.NewTTY(mock, out, "container123", maxRetries, 10*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", maxRetries, 10*time.Millisecond, writer, func() {})
 		ctx := context.Background()
 
-		err := tty.Monitor(ctx)
+		err := tty.Monitor(ctx, func() {})
 		require.NoError(t, err)
 
 		// Give the retry goroutine time to exhaust retries
@@ -142,7 +142,7 @@ func TestTTYCreation(t *testing.T) {
 		out := streams.NewOut(nil)
 		writer := newMockWriter()
 
-		tty := docker.NewTTY(mock, out, "container123", 10, 100*time.Millisecond, writer)
+		tty := docker.NewTTY(mock, out, "container123", 10, 100*time.Millisecond, writer, func() {})
 
 		// We can't directly inspect the fields since they're private,
 		// but we can verify the TTY was created without panicking
@@ -184,7 +184,7 @@ func TestContainerResizeIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		writer := newMockWriter()
-		_ = container.Attach(ctx, writer) //nolint:errcheck // Test verifies resize behavior, not attach success
+		_ = container.Attach(ctx, func() {}, writer) //nolint:errcheck // Test verifies resize behavior, not attach success
 
 		// In test environment, resize is called but with 0x0 dimensions
 		// The resize call itself should not fail

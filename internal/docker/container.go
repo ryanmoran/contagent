@@ -5,10 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/docker/cli/cli/streams"
@@ -65,7 +62,7 @@ func (c Container) Start(ctx context.Context) error {
 // It sets the terminal to raw mode, monitors terminal resize events, and forwards I/O between
 // the local terminal and the container. Returns an error if terminal setup fails, TTY monitoring
 // fails, or container attachment fails.
-func (c Container) Attach(ctx context.Context, w internal.Writer) error {
+func (c Container) Attach(ctx context.Context, cancel context.CancelFunc, w internal.Writer) error {
 	stdin, stdout, _ := term.StdStreams()
 	in := streams.NewIn(stdin)
 	out := streams.NewOut(stdout)
@@ -80,8 +77,8 @@ func (c Container) Attach(ctx context.Context, w internal.Writer) error {
 		w.Warningf("failed to resize tty: %v", err)
 	}
 
-	tty := NewTTY(c.client, out, c.ID, c.TTYRetries, c.RetryDelay, w)
-	err = tty.Monitor(ctx)
+	tty := NewTTY(c.client, out, c.ID, c.TTYRetries, c.RetryDelay, w, cancel)
+	err = tty.Monitor(ctx, cancel)
 	if err != nil {
 		return fmt.Errorf("failed to monitor tty size: %w", err)
 	}
@@ -157,16 +154,13 @@ func (c Container) Attach(ctx context.Context, w internal.Writer) error {
 	return nil
 }
 
-// Wait waits for the container to exit or for an interrupt signal (SIGINT, SIGTERM).
-// If a signal is received, it attempts to gracefully stop the container with the configured
+// Wait waits for the container to exit or for context cancellation.
+// If the context is cancelled, it attempts to gracefully stop the container with the configured
 // timeout. Returns an error if waiting for the container fails.
 func (c Container) Wait(ctx context.Context, w internal.Writer) error {
 	wait := c.client.ContainerWait(ctx, c.ID, client.ContainerWaitOptions{
 		Condition: container.WaitConditionNotRunning,
 	})
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
 	case err := <-wait.Error:
@@ -175,10 +169,10 @@ func (c Container) Wait(ctx context.Context, w internal.Writer) error {
 		}
 	case status := <-wait.Result:
 		w.Printf("\nContainer exited with status: %d\n", status.StatusCode)
-	case <-sigChan:
+	case <-ctx.Done():
 		w.Println("\nReceived signal, stopping container...")
 		timeout := c.StopTimeout
-		_, err := c.client.ContainerStop(ctx, c.ID, client.ContainerStopOptions{Timeout: &timeout})
+		_, err := c.client.ContainerStop(context.Background(), c.ID, client.ContainerStopOptions{Timeout: &timeout})
 		if err != nil {
 			w.Warningf("failed to stop container: %v", err)
 		}

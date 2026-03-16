@@ -26,7 +26,7 @@ func TestConfig(t *testing.T) {
 				"OTHER_KEY=other-value",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-command", "--some-option"}), config.Args)
 			require.Equal(t, internal.Environment([]string{
@@ -50,7 +50,7 @@ func TestConfig(t *testing.T) {
 				"ANTHROPIC_API_KEY=some-api-key",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program", "--arg"}), config.Args)
 			require.ElementsMatch(t, []string{
@@ -72,7 +72,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program"}), config.Args)
 			require.Equal(t, []string{
@@ -93,7 +93,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program"}), config.Args)
 			require.Equal(t, []string{
@@ -115,13 +115,12 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, internal.Command([]string{"some-program", "--arg"}), config.Args)
 			require.ElementsMatch(t, []string{
 				"TERM=some-term",
 				"COLORTERM=truecolor",
-				"ANTHROPIC_API_KEY=",
 				"SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock",
 				"VAR1=value1",
 				"VAR2=value2",
@@ -142,7 +141,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "time: invalid duration")
 			require.Equal(t, internal.Config{}, config)
@@ -155,7 +154,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "file does not exist")
 			require.Equal(t, internal.Config{}, config)
@@ -170,7 +169,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, "/some/path/to/a/Dockerfile", config.DockerfilePath)
 		})
@@ -184,7 +183,7 @@ func TestConfig(t *testing.T) {
 				"TERM=some-term",
 			}
 
-			config, err := internal.ParseConfig(args, env)
+			config, err := internal.ParseConfig(args, env, ".")
 			require.NoError(t, err)
 			require.Equal(t, "some-network", config.Network)
 		})

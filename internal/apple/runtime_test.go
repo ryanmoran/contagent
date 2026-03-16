@@ -136,7 +136,7 @@ func TestRuntimeCreateContainer(t *testing.T) {
 		require.Contains(t, call.Args, "/app")
 		require.Contains(t, call.Args, "myimage:latest")
 		require.Contains(t, call.Args, "sleep")
-		require.Contains(t, call.Args, "2147483647")
+		require.Contains(t, call.Args, "infinity")
 	})
 
 	t.Run("returns error on create failure", func(t *testing.T) {

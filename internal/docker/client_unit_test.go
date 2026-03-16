@@ -42,6 +42,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		mock := &mockDockerClient{
 			imageBuildFunc: func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error) {
+				io.Copy(io.Discard, buildContext) //nolint:errcheck // draining pipe for goroutine completion
 				return client.ImageBuildResult{
 					Body: io.NopCloser(bytes.NewReader(outputBytes)),
 				}, nil
@@ -69,6 +70,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		mock := &mockDockerClient{
 			imageBuildFunc: func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error) {
+				io.Copy(io.Discard, buildContext) //nolint:errcheck // draining pipe for goroutine completion
 				return client.ImageBuildResult{}, errors.New("build failed")
 			},
 		}
@@ -103,6 +105,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		mock := &mockDockerClient{
 			imageBuildFunc: func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error) {
+				io.Copy(io.Discard, buildContext) //nolint:errcheck // draining pipe for goroutine completion
 				return client.ImageBuildResult{
 					Body: io.NopCloser(bytes.NewReader(outputBytes)),
 				}, nil
@@ -129,6 +132,7 @@ func TestBuildImageWithMock(t *testing.T) {
 
 		mock := &mockDockerClient{
 			imageBuildFunc: func(ctx context.Context, buildContext io.Reader, options client.ImageBuildOptions) (client.ImageBuildResult, error) {
+				io.Copy(io.Discard, buildContext) //nolint:errcheck // draining pipe for goroutine completion
 				return client.ImageBuildResult{}, context.Canceled
 			},
 		}

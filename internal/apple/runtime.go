@@ -3,15 +3,11 @@ package apple
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
-	"strconv"
 
 	"github.com/ryanmoran/contagent/internal"
 	"github.com/ryanmoran/contagent/internal/runtime"
 )
-
-const MaxSleepTime = math.MaxInt32
 
 // Compile-time check that Runtime implements runtime.Runtime.
 var _ runtime.Runtime = (*Runtime)(nil)
@@ -63,7 +59,7 @@ func (r *Runtime) CreateContainer(ctx context.Context, opts runtime.CreateContai
 		args = append(args, "--workdir", opts.WorkingDir)
 	}
 
-	args = append(args, opts.Image.Name, "sleep", strconv.Itoa(MaxSleepTime))
+	args = append(args, opts.Image.Name, "sleep", "infinity")
 
 	err := r.runner.Run(ctx, nil, os.Stdout, os.Stderr, "container", args...)
 	if err != nil {

@@ -46,7 +46,7 @@ type Container interface {
 	InspectUser(ctx context.Context) (ImageUser, error)
 	CopyTo(ctx context.Context, content io.Reader, path string) error
 	Start(ctx context.Context) error
-	Attach(ctx context.Context, w internal.Writer) error
+	Attach(ctx context.Context, cancel context.CancelFunc, w internal.Writer) error
 	Wait(ctx context.Context, w internal.Writer) error
 	ForceRemove(ctx context.Context) error
 }

@@ -214,7 +214,7 @@ func TestContainerAttach(t *testing.T) {
 		container := createTestContainer(t, runner)
 		w := &mockWriter{}
 
-		err := container.Attach(context.Background(), w)
+		err := container.Attach(context.Background(), func() {}, w)
 		require.NoError(t, err)
 
 		require.Len(t, runner.calls, 1)
@@ -244,7 +244,7 @@ func TestContainerAttach(t *testing.T) {
 		container := createTestContainer(t, runner)
 		w := &mockWriter{}
 
-		err := container.Attach(context.Background(), w)
+		err := container.Attach(context.Background(), func() {}, w)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to exec in container")
 	})
@@ -260,7 +260,7 @@ func TestContainerWait(t *testing.T) {
 		container := createTestContainer(t, runner)
 		w := &mockWriter{}
 
-		err := container.Attach(context.Background(), w)
+		err := container.Attach(context.Background(), func() {}, w)
 		require.NoError(t, err)
 
 		// Use a writer that captures output
@@ -279,7 +279,7 @@ func TestContainerWait(t *testing.T) {
 		container := createTestContainer(t, runner)
 		w := &mockWriter{}
 
-		err := container.Attach(context.Background(), w)
+		err := container.Attach(context.Background(), func() {}, w)
 		require.NoError(t, err)
 
 		outWriter := &capturingWriter{}
@@ -306,7 +306,7 @@ func TestContainerWait(t *testing.T) {
 		container := createTestContainer(t, runner)
 		w := &mockWriter{}
 
-		err := container.Attach(context.Background(), w)
+		err := container.Attach(context.Background(), func() {}, w)
 		require.NoError(t, err)
 
 		outWriter := &capturingWriter{}
