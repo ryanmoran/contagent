@@ -128,7 +128,7 @@ func (c *Container) Start(ctx context.Context) error {
 
 // Attach runs the actual user command inside the container using
 // `container exec --tty --interactive`. Apple Container handles TTY natively.
-func (c *Container) Attach(ctx context.Context, w internal.Writer) error {
+func (c *Container) Attach(ctx context.Context, cancel context.CancelFunc, w internal.Writer) error {
 	args := []string{"exec", "--tty", "--interactive"}
 
 	if c.workingDir != "" {

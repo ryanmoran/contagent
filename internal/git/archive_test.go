@@ -57,7 +57,16 @@ func TestCreateArchive(t *testing.T) {
 		userName := "Archive User"
 		userEmail := "archive@example.com"
 
-		reader, err := git.CreateArchive(dir, remote, branch, userName, userEmail, 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       remote,
+			Branch:       branch,
+			GitUserName:  userName,
+			GitUserEmail: userEmail,
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -150,7 +159,16 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		_, err = git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		_, err = git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.ErrorContains(t, err, "failed to get git root path")
 	})
 
@@ -184,7 +202,16 @@ func TestCreateArchive(t *testing.T) {
 
 		// Create archive should succeed
 		remote := "http://example.com/repo.git"
-		reader, err := git.CreateArchive(dir, remote, "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       remote,
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -227,7 +254,16 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -281,7 +317,16 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive from subdirectory
-		reader, err := git.CreateArchive(subDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         subDir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -312,7 +357,16 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive from empty repo - returns reader but will error when reading
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		// CreateArchive returns immediately with a reader, error happens in goroutine
 		require.NoError(t, err)
 		if reader != nil {
@@ -373,7 +427,16 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive (this will internally use copyDirectory)
-		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         gitDir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -447,7 +510,16 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -500,7 +572,16 @@ func TestCopyDirectory(t *testing.T) {
 		require.NoError(t, cmd.Run())
 
 		// Create archive
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -570,7 +651,16 @@ func TestCopyFile(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(gitDir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         gitDir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -635,7 +725,16 @@ func TestCopyFile(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -687,7 +786,16 @@ func TestArchiveOwnership(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          1001,
+			GID:          1001,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -731,7 +839,16 @@ func TestArchiveOwnership(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          1001,
+			GID:          1001,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -779,7 +896,16 @@ func TestArchiveOwnership(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          1001,
+			GID:          1001,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -825,7 +951,16 @@ func TestArchiveOwnership(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 1001, 1001, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          1001,
+			GID:          1001,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -876,7 +1011,16 @@ func TestAddDirectoryToArchive(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 
@@ -926,7 +1070,16 @@ func TestAddDirectoryToArchive(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		reader, err := git.CreateArchive(dir, "http://example.com", "branch", "user", "user@example.com", 0, 0, "", internal.NewStandardWriter())
+		reader, err := git.CreateArchive(git.ArchiveOptions{
+			Path:         dir,
+			Remote:       "http://example.com",
+			Branch:       "branch",
+			GitUserName:  "user",
+			GitUserEmail: "user@example.com",
+			UID:          0,
+			GID:          0,
+			DestDir:      "",
+		}, internal.NewStandardWriter())
 		require.NoError(t, err)
 		defer reader.Close()
 

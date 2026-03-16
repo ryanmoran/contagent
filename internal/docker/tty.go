@@ -19,12 +19,14 @@ type TTY struct {
 	maxRetries int
 	retryDelay time.Duration
 	writer     internal.Writer
+	cancel     context.CancelFunc
 }
 
 // NewTTY creates a TTY handler for monitoring and resizing the container's terminal.
 // The maxRetries parameter controls how many times to retry initial resize operations,
-// and retryDelay specifies the base delay between retries.
-func NewTTY(client DockerClient, out *streams.Out, id string, maxRetries int, retryDelay time.Duration, writer internal.Writer) TTY {
+// and retryDelay specifies the base delay between retries. The cancel function is called
+// if retries are exhausted to signal context cancellation instead of calling Fatal.
+func NewTTY(client DockerClient, out *streams.Out, id string, maxRetries int, retryDelay time.Duration, writer internal.Writer, cancel context.CancelFunc) TTY {
 	return TTY{
 		client:     client,
 		out:        out,
@@ -32,6 +34,7 @@ func NewTTY(client DockerClient, out *streams.Out, id string, maxRetries int, re
 		maxRetries: maxRetries,
 		retryDelay: retryDelay,
 		writer:     writer,
+		cancel:     cancel,
 	}
 }
 
@@ -39,7 +42,7 @@ func NewTTY(client DockerClient, out *streams.Out, id string, maxRetries int, re
 // the container's TTY to match. If the initial resize fails, it retries with exponential
 // backoff up to the configured maximum retries. Returns nil after starting background
 // monitoring goroutines, or an error if the context is cancelled during setup.
-func (t TTY) Monitor(ctx context.Context) error {
+func (t TTY) Monitor(ctx context.Context, cancel context.CancelFunc) error {
 	err := t.Resize(ctx)
 	if err != nil {
 		go func() {
@@ -55,7 +58,8 @@ func (t TTY) Monitor(ctx context.Context) error {
 				}
 			}
 			if err != nil {
-				t.writer.Fatalf("failed to resize tty: %v", err)
+				t.writer.Warningf("failed to resize tty: %v", err)
+				cancel()
 			}
 		}()
 	}

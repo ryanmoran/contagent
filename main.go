@@ -38,7 +38,12 @@ func run(args, env []string) error {
 	cleanup := internal.NewCleanupManager()
 	defer cleanup.Execute()
 
-	config, err := internal.ParseConfig(args[1:], env)
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w\nThis is a system error - check file system permissions", err)
+	}
+
+	config, err := internal.ParseConfig(args[1:], env, workingDirectory)
 	if err != nil {
 		return fmt.Errorf("failed to parse configuration: %w", err)
 	}
@@ -56,11 +61,6 @@ func run(args, env []string) error {
 	w := internal.NewStandardWriter()
 
 	session := internal.GenerateSession()
-
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %w\nThis is a system error - check file system permissions", err)
-	}
 
 	remote, err := git.NewServer(workingDirectory, w)
 	if err != nil {
@@ -125,17 +125,16 @@ func run(args, env []string) error {
 		return fmt.Errorf("failed to inspect user for image %q: %w", image.Name, err)
 	}
 
-	archive, err := git.CreateArchive(
-		workingDirectory,
-		fmt.Sprintf("http://%s:%d", rt.HostAddress(), remote.Port()),
-		session.Branch(),
-		config.GitUser.Name,
-		config.GitUser.Email,
-		imageUser.UID,
-		imageUser.GID,
-		filepath.Base(config.WorkingDir),
-		w,
-	)
+	archive, err := git.CreateArchive(git.ArchiveOptions{
+		Path:         workingDirectory,
+		Remote:       fmt.Sprintf("http://%s:%d", rt.HostAddress(), remote.Port()),
+		Branch:       session.Branch(),
+		GitUserName:  config.GitUser.Name,
+		GitUserEmail: config.GitUser.Email,
+		UID:          imageUser.UID,
+		GID:          imageUser.GID,
+		DestDir:      filepath.Base(config.WorkingDir),
+	}, w)
 	if err != nil {
 		return fmt.Errorf("failed to create git archive from %q on branch %q: %w", workingDirectory, session.Branch(), err)
 	}
@@ -151,7 +150,7 @@ func run(args, env []string) error {
 		return fmt.Errorf("failed to start container %q: %w", session.ID(), err)
 	}
 
-	err = container.Attach(ctx, w)
+	err = container.Attach(ctx, cancel, w)
 	if err != nil {
 		return fmt.Errorf("failed to attach to container %q: %w\nThis may indicate a TTY configuration issue", session.ID(), err)
 	}

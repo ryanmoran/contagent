@@ -68,7 +68,7 @@ func NewServer(path string, w internal.Writer) (Server, error) {
 				"GIT_HTTP_VERBOSE=1",
 				"SSH_AUTH_SOCK=" + os.Getenv("SSH_AUTH_SOCK"),
 			},
-			Logger: log.New(os.Stdout, "[GIT SERVER}", 0),
+			Logger: log.New(os.Stdout, "[GIT SERVER] ", 0),
 			Stderr: os.Stderr,
 		}
 

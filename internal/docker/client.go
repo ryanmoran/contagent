@@ -106,7 +106,6 @@ func (c Client) BuildImage(ctx context.Context, dockerfilePath string, imageName
 		}
 	case <-ctx.Done():
 		return runtime.Image{}, ctx.Err()
-	default:
 	}
 
 	decoder := json.NewDecoder(response.Body)

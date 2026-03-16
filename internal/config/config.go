@@ -129,8 +129,9 @@ func Load(cliArgs []string, environment []string, startDir string) (Config, []st
 	fs.Var(&envFlags, "env", "Environment variable (KEY=VALUE)")
 	fs.Var(&volumeFlags, "volume", "Volume mount")
 
-	// Ignore parse errors since we want to handle remaining args separately
-	_ = fs.Parse(cliArgs) //nolint:errcheck // Intentionally parsing what we can and handling remaining args
+	if err := fs.Parse(cliArgs); err != nil {
+		return Config{}, nil, err
+	}
 
 	// Extract remaining program arguments
 	programArgs := fs.Args()
