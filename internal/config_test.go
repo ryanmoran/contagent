@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -79,6 +80,59 @@ func TestConfig(t *testing.T) {
 				"/var/run/docker.sock:/var/run/docker.sock",
 				"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 				"/host/path:/container/path",
+			}, config.Volumes)
+		})
+
+		t.Run("with relative --volume host path", func(t *testing.T) {
+			dir := t.TempDir()
+			args := []string{
+				"--runtime", "apple",
+				"--volume", "./relative/path:/container/path",
+				"some-program",
+			}
+			env := []string{
+				"TERM=some-term",
+			}
+
+			config, err := internal.ParseConfig(args, env, dir)
+			require.NoError(t, err)
+			require.Equal(t, []string{
+				filepath.Join(dir, "relative/path") + ":/container/path",
+			}, config.Volumes)
+		})
+
+		t.Run("with relative --volume host path and options", func(t *testing.T) {
+			dir := t.TempDir()
+			args := []string{
+				"--runtime", "apple",
+				"--volume", "./data:/container/data:ro",
+				"some-program",
+			}
+			env := []string{
+				"TERM=some-term",
+			}
+
+			config, err := internal.ParseConfig(args, env, dir)
+			require.NoError(t, err)
+			require.Equal(t, []string{
+				filepath.Join(dir, "data") + ":/container/data:ro",
+			}, config.Volumes)
+		})
+
+		t.Run("with named volume is not resolved", func(t *testing.T) {
+			args := []string{
+				"--runtime", "apple",
+				"--volume", "myvolume:/container/path",
+				"some-program",
+			}
+			env := []string{
+				"TERM=some-term",
+			}
+
+			config, err := internal.ParseConfig(args, env, ".")
+			require.NoError(t, err)
+			require.Equal(t, []string{
+				"myvolume:/container/path",
 			}, config.Volumes)
 		})
 

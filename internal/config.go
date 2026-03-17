@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	goruntime "runtime"
 	"strings"
 	"time"
@@ -68,6 +69,9 @@ func ParseConfig(args []string, environment []string, startDir string) (Config, 
 	// Build volumes with defaults (runtime-aware)
 	volumes := buildVolumes(cfg.Volumes, rt)
 
+	// Resolve relative host paths in volumes to absolute paths
+	volumes = resolveVolumePaths(volumes, startDir)
+
 	return Config{
 		Runtime:        rt,
 		ImageName:      ImageName(cfg.Image),
@@ -117,6 +121,28 @@ func buildVolumes(configVolumes []string, rt string) []string {
 			"/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock",
 		}, configVolumes...)
 	}
+}
+
+// resolveVolumePaths resolves relative host paths in volume mount specs to absolute paths.
+// Volume specs have the format [host-path:]container-path[:options].
+// Host paths starting with "." are treated as relative and resolved against baseDir.
+// Named volumes (no leading "/" or ".") and container-only specs are left unchanged.
+func resolveVolumePaths(volumes []string, baseDir string) []string {
+	resolved := make([]string, len(volumes))
+	for i, volume := range volumes {
+		hostPath, rest, hasColon := strings.Cut(volume, ":")
+		if !hasColon || !strings.HasPrefix(hostPath, ".") {
+			resolved[i] = volume
+			continue
+		}
+		absPath, err := filepath.Abs(filepath.Join(baseDir, hostPath))
+		if err != nil {
+			resolved[i] = volume
+			continue
+		}
+		resolved[i] = absPath + ":" + rest
+	}
+	return resolved
 }
 
 // buildEnvironment constructs the environment variable list with runtime-aware defaults
