@@ -62,9 +62,28 @@ func run(args, env []string) error {
 
 	session := internal.GenerateSession()
 
-	remote, err := git.NewServer(workingDirectory, w)
+	gitRoot, err := git.FindRoot(workingDirectory)
 	if err != nil {
-		return fmt.Errorf("failed to start git server in directory %q: %w", workingDirectory, err)
+		return fmt.Errorf("not a git repository: %w", err)
+	}
+
+	relPath, err := filepath.Rel(gitRoot, workingDirectory)
+	if err != nil {
+		return fmt.Errorf("failed to compute relative path from git root: %w", err)
+	}
+
+	// containerWorkingDir is where the container starts. When running from a
+	// subdirectory, it is config.WorkingDir + relPath. The archive always
+	// extracts to config.WorkingDir so the git root path in the container
+	// remains stable regardless of where contagent was invoked.
+	containerWorkingDir := config.WorkingDir
+	if relPath != "." {
+		containerWorkingDir = filepath.Join(config.WorkingDir, relPath)
+	}
+
+	remote, err := git.NewServer(gitRoot, w)
+	if err != nil {
+		return fmt.Errorf("failed to start git server in directory %q: %w", gitRoot, err)
 	}
 	cleanup.Add("git-server", remote.Close)
 
@@ -106,7 +125,7 @@ func run(args, env []string) error {
 			Args:        config.Args,
 			Env:         config.Env,
 			Volumes:     config.Volumes,
-			WorkingDir:  config.WorkingDir,
+			WorkingDir:  containerWorkingDir,
 			Network:     config.Network,
 			StopTimeout: config.StopTimeout,
 			TTYRetries:  config.TTYRetries,
@@ -125,8 +144,12 @@ func run(args, env []string) error {
 		return fmt.Errorf("failed to inspect user for image %q: %w", image.Name, err)
 	}
 
+	// DestDir and CopyTo work in tandem: DestDir is the final path component of
+	// config.WorkingDir, and CopyTo receives its parent. Together they cause the
+	// archive to be extracted at exactly config.WorkingDir in the container.
+	// Both must remain derived from the same config.WorkingDir value.
 	archive, err := git.CreateArchive(git.ArchiveOptions{
-		Path:         workingDirectory,
+		Path:         gitRoot,
 		Remote:       fmt.Sprintf("http://%s:%d", rt.HostAddress(), remote.Port()),
 		Branch:       session.Branch(),
 		GitUserName:  config.GitUser.Name,

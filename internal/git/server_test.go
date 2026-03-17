@@ -107,11 +107,4 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "modified content\n", string(content))
 	})
-
-	t.Run("failure cases", func(t *testing.T) {
-		t.Run("when the directory is not a git repo", func(t *testing.T) {
-			_, err := git.NewServer("/tmp", internal.NewStandardWriter())
-			require.ErrorContains(t, err, "not a git repository")
-		})
-	})
 }

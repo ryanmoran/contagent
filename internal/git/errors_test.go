@@ -20,16 +20,20 @@ func TestGitServerErrorCases(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			_, err = git.NewServer(dir, internal.NewStandardWriter())
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "not a git repository")
+			// NewServer no longer validates that the path is a git repo;
+			// callers (e.g. main.go) are expected to resolve the git root first.
+			server, err := git.NewServer(dir, internal.NewStandardWriter())
+			require.NoError(t, err)
+			server.Close()
 		})
 
 		t.Run("non-existent directory", func(t *testing.T) {
-			_, err := git.NewServer("/nonexistent/path/to/repo", internal.NewStandardWriter())
-			require.Error(t, err)
-			// Error could be either "not a git repository" or path resolution error
-			require.Error(t, err)
+			// NewServer no longer validates path existence upfront.
+			// The server will start but fail when handling requests.
+			server, err := git.NewServer("/nonexistent/path/to/repo", internal.NewStandardWriter())
+			if err == nil {
+				server.Close()
+			}
 		})
 
 		t.Run("relative path resolution", func(t *testing.T) {
@@ -94,7 +98,9 @@ func TestGitArchiveErrorCases(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(dir)
 
-			_, err = git.CreateArchive(git.ArchiveOptions{
+			// CreateArchive no longer calls FindRoot; callers must pass the git root.
+			// The error is deferred to read time when buildArchive fails to find .git.
+			reader, err := git.CreateArchive(git.ArchiveOptions{
 				Path:         dir,
 				Remote:       "http://example.com",
 				Branch:       "branch",
@@ -104,12 +110,16 @@ func TestGitArchiveErrorCases(t *testing.T) {
 				GID:          0,
 				DestDir:      "",
 			}, internal.NewStandardWriter())
+			require.NoError(t, err)
+			defer reader.Close()
+			_, err = io.ReadAll(reader)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "failed to get git root path")
+			require.Contains(t, err.Error(), "failed to copy .git directory")
 		})
 
 		t.Run("non-existent directory", func(t *testing.T) {
-			_, err := git.CreateArchive(git.ArchiveOptions{
+			// Error is deferred to read time.
+			reader, err := git.CreateArchive(git.ArchiveOptions{
 				Path:         "/nonexistent/path",
 				Remote:       "http://example.com",
 				Branch:       "branch",
@@ -119,8 +129,10 @@ func TestGitArchiveErrorCases(t *testing.T) {
 				GID:          0,
 				DestDir:      "",
 			}, internal.NewStandardWriter())
+			require.NoError(t, err)
+			defer reader.Close()
+			_, err = io.ReadAll(reader)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "failed to get git root path")
 		})
 
 		t.Run("empty git repository", func(t *testing.T) {
@@ -196,7 +208,9 @@ func TestGitArchiveErrorCases(t *testing.T) {
 				}
 			})
 
-			_, err = git.CreateArchive(git.ArchiveOptions{
+			// CreateArchive no longer calls FindRoot; error is deferred to read time
+			// when buildArchive fails to copy the .git directory.
+			reader, err := git.CreateArchive(git.ArchiveOptions{
 				Path:         dir,
 				Remote:       "http://example.com",
 				Branch:       "branch",
@@ -206,6 +220,9 @@ func TestGitArchiveErrorCases(t *testing.T) {
 				GID:          0,
 				DestDir:      "",
 			}, internal.NewStandardWriter())
+			require.NoError(t, err)
+			defer reader.Close()
+			_, err = io.ReadAll(reader)
 			require.Error(t, err)
 		})
 

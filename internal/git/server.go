@@ -34,10 +34,6 @@ func NewServer(path string, w internal.Writer) (Server, error) {
 		return Server{}, fmt.Errorf("failed to resolve absolute path for %q: %w\nCheck that the path exists and is accessible", path, err)
 	}
 
-	if _, err := os.Stat(filepath.Join(path, ".git")); os.IsNotExist(err) {
-		return Server{}, fmt.Errorf("not a git repository: %q\nRun 'git init' to initialize a repository or navigate to an existing one", path)
-	}
-
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return Server{}, fmt.Errorf("failed to create TCP listener on localhost: %w\nAnother process may be using network resources", err)

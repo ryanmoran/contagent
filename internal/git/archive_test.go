@@ -159,7 +159,10 @@ func TestCreateArchive(t *testing.T) {
 		require.NoError(t, err)
 		defer os.RemoveAll(dir)
 
-		_, err = git.CreateArchive(git.ArchiveOptions{
+		// CreateArchive no longer calls FindRoot; callers must pass the git root.
+		// The error is deferred: CreateArchive returns a reader, but reading fails
+		// when buildArchive cannot find the .git directory.
+		reader, err := git.CreateArchive(git.ArchiveOptions{
 			Path:         dir,
 			Remote:       "http://example.com",
 			Branch:       "branch",
@@ -169,7 +172,10 @@ func TestCreateArchive(t *testing.T) {
 			GID:          0,
 			DestDir:      "",
 		}, internal.NewStandardWriter())
-		require.ErrorContains(t, err, "failed to get git root path")
+		require.NoError(t, err)
+		defer reader.Close()
+		_, err = io.ReadAll(reader)
+		require.ErrorContains(t, err, "failed to copy .git directory")
 	})
 
 	t.Run("handles repository with no initial remote", func(t *testing.T) {
@@ -316,9 +322,9 @@ func TestCreateArchive(t *testing.T) {
 		)
 		require.NoError(t, cmd.Run())
 
-		// Create archive from subdirectory
+		// CreateArchive requires the git root (callers resolve it via FindRoot first).
 		reader, err := git.CreateArchive(git.ArchiveOptions{
-			Path:         subDir,
+			Path:         dir,
 			Remote:       "http://example.com",
 			Branch:       "branch",
 			GitUserName:  "user",

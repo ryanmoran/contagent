@@ -27,6 +27,19 @@ type ArchiveOptions struct {
 	DestDir      string
 }
 
+// FindRoot returns the root directory of the git repository containing path,
+// by running "git rev-parse --show-toplevel". Returns an error if path is not
+// inside a git repository.
+func FindRoot(path string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = path
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git root path from %q: %w\nEnsure you're in a git repository", path, err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // CreateArchive creates a tar archive of the Git repository at the specified path, configured
 // with the given remote URL and branch name. It checks out HEAD into a temporary directory,
 // configures the remote, creates a new branch, and archives the .git directory and all tracked
@@ -44,15 +57,6 @@ type ArchiveOptions struct {
 // resources. Returns an error if the Git root cannot be determined, the temporary directory
 // cannot be created, .git copying fails, git operations fail, or archive creation fails.
 func CreateArchive(opts ArchiveOptions, w internal.Writer) (io.ReadCloser, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	cmd.Dir = opts.Path
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get git root path from %q: %w\nEnsure you're in a git repository", opts.Path, err)
-	}
-
-	root := strings.TrimSpace(string(output))
-
 	tempDir, err := os.MkdirTemp("", "contagent-checkout-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary directory: %w\nCheck disk space and /tmp permissions", err)
@@ -63,7 +67,7 @@ func CreateArchive(opts ArchiveOptions, w internal.Writer) (io.ReadCloser, error
 	go func() {
 		tw := tar.NewWriter(pw)
 
-		err := buildArchive(tw, opts, root, tempDir)
+		err := buildArchive(tw, opts, opts.Path, tempDir)
 		if err != nil {
 			pw.CloseWithError(fmt.Errorf("failed to create git archive: %w", err))
 		} else {
