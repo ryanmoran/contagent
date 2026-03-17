@@ -231,8 +231,12 @@ func TestContainerAttach(t *testing.T) {
 		require.Contains(t, argsStr, "--env")
 		require.Contains(t, argsStr, "FOO=bar")
 		require.Contains(t, argsStr, "test-session")
-		require.Contains(t, argsStr, "echo")
-		require.Contains(t, argsStr, "hello")
+		// Command is wrapped in a login shell to ensure profile files are sourced
+		// and PATH includes user-local directories. See TODO in container.go.
+		require.Contains(t, argsStr, "/bin/sh")
+		require.Contains(t, argsStr, "-l")
+		require.Contains(t, argsStr, "-c")
+		require.Contains(t, argsStr, "exec 'echo' 'hello'")
 	})
 
 	t.Run("returns error on exec failure", func(t *testing.T) {

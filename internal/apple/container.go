@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/ryanmoran/contagent/internal"
@@ -140,7 +138,21 @@ func (c *Container) Attach(ctx context.Context, cancel context.CancelFunc, w int
 	}
 
 	args = append(args, c.name)
-	args = append(args, c.cmd...)
+
+	// TODO: Remove this login shell workaround once apple/container ships a release
+	// that includes apple/containerization >= 0.26.5. Two bugs in containerization
+	// (PRs #550 and #562, merged Feb 2026) caused `container exec` to ignore the
+	// container's configured PATH and environment entirely, falling back to a hardcoded
+	// default PATH that omits user-local directories (e.g. ~/.local/bin). Both fixes
+	// landed in containerization 0.26.5 and are present in apple/container main, but
+	// the latest release (v0.10.0) pins containerization 0.26.3 and does not include
+	// them. Wrapping in a login shell sources profile files and resolves PATH correctly
+	// regardless of the containerization version in use.
+	quoted := make([]string, len(c.cmd))
+	for i, arg := range c.cmd {
+		quoted[i] = "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
+	}
+	args = append(args, "/bin/sh", "-l", "-c", "exec "+strings.Join(quoted, " "))
 
 	proc, err := c.runner.Start(ctx, os.Stdin, os.Stdout, os.Stderr, "container", args...)
 	if err != nil {
@@ -152,7 +164,8 @@ func (c *Container) Attach(ctx context.Context, cancel context.CancelFunc, w int
 }
 
 // Wait waits for the exec process (started in Attach) to exit.
-// It handles SIGINT/SIGTERM by stopping the container gracefully.
+// It handles context cancellation (e.g. from SIGINT/SIGTERM) by stopping the
+// container gracefully before waiting for the exec process to exit.
 func (c *Container) Wait(ctx context.Context, w internal.Writer) error {
 	if c.process == nil {
 		return nil
@@ -169,17 +182,13 @@ func (c *Container) Wait(ctx context.Context, w internal.Writer) error {
 		done <- result{code, err}
 	}()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigChan)
-
 	select {
 	case r := <-done:
 		if r.err != nil {
 			return fmt.Errorf("process error in container %q: %w", c.name, r.err)
 		}
 		w.Printf("\nContainer exited with status: %d\n", r.exitCode)
-	case <-sigChan:
+	case <-ctx.Done():
 		w.Println("\nReceived signal, stopping container...")
 		stopCtx := context.Background()
 		if err := c.runner.Run(stopCtx, nil, nil, nil,
@@ -189,8 +198,6 @@ func (c *Container) Wait(ctx context.Context, w internal.Writer) error {
 		); err != nil {
 			w.Warningf("failed to stop container: %v", err)
 		}
-		<-done
-	case <-ctx.Done():
 		<-done
 	}
 
