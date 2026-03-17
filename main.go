@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/ryanmoran/contagent/internal"
 	"github.com/ryanmoran/contagent/internal/apple"
@@ -136,6 +137,8 @@ func run(args, env []string) error {
 		return fmt.Errorf("failed to create container %q from image %q: %w", session.ID(), image.Name, err)
 	}
 	cleanup.Add("container", func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		return container.ForceRemove(ctx)
 	})
 
