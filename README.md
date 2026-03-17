@@ -176,6 +176,7 @@ env:
 CLI flags override all configuration files:
 
 #### Container Configuration
+
 - `--image NAME`: Container image name
 - `--dockerfile PATH`: Path to Dockerfile for building image
 - `--working-dir PATH`: Working directory inside container
@@ -183,14 +184,17 @@ CLI flags override all configuration files:
 - `--stop-timeout SECONDS`: Container stop timeout
 
 #### TTY Configuration
+
 - `--tty-retries COUNT`: Number of TTY resize retry attempts
 - `--retry-delay DURATION`: Delay between retries (e.g., "10ms", "100ms")
 
 #### Git Configuration
+
 - `--git-user-name NAME`: Git user name for commits
 - `--git-user-email EMAIL`: Git user email for commits
 
 #### Runtime Configuration
+
 - `--env KEY=VALUE`: Add environment variable (can be used multiple times)
 - `--volume HOST:CONTAINER`: Mount volume (can be used multiple times)
 
@@ -210,10 +214,10 @@ Both `env` and `volumes` sections in configuration files support environment var
 env:
   # Simple expansion
   HOME_PATH: $HOME
-  
+
   # Braced expansion
   USER_DIR: ${HOME}/${USER}
-  
+
   # Use in volumes
 volumes:
   - $HOME/.ssh:/root/.ssh
@@ -260,15 +264,15 @@ contagent --volume ./data:/data --volume $HOME/.cache:/root/.cache /bin/bash
 
 If no configuration is provided, these defaults are used:
 
-| Setting | Default Value |
-|---------|---------------|
-| `image` | `contagent:latest` |
-| `working_dir` | `/app` |
-| `network` | `default` |
-| `stop_timeout` | `10` seconds |
-| `tty_retries` | `10` |
-| `retry_delay` | `10ms` |
-| `git.user.name` | `Contagent` |
+| Setting          | Default Value           |
+| ---------------- | ----------------------- |
+| `image`          | `contagent:latest`      |
+| `working_dir`    | `/app`                  |
+| `network`        | `default`               |
+| `stop_timeout`   | `10` seconds            |
+| `tty_retries`    | `10`                    |
+| `retry_delay`    | `10ms`                  |
+| `git.user.name`  | `Contagent`             |
 | `git.user.email` | `contagent@example.com` |
 
 ### Configuration Priority Example
