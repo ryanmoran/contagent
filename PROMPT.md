@@ -50,6 +50,11 @@ findings doc that states:
 - Which features require shelling out to the `matchlock` CLI vs. using the SDK.
 - Any SDK gaps or surprises that affect the plan.
 
+## Branching
+
+- All new code must be based off the `v2` branch.
+- When creating pull requests, set `v2` as the base branch.
+
 ## Ground rules
 
 - Do not guess. If a capability isn't in the SDK source, say `not-available` or
