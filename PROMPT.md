@@ -1,63 +1,115 @@
-# Phase 0 — Resolve open questions for the Matchlock microVM rewrite
+# Phase 1 — Walking skeleton: Matchlock runtime
 
-Read `PLAN.md` in this repo. It describes a rewrite of contagent's runtime from
-Docker containers to Matchlock microVMs.
+## Goal
 
-**Your job is to complete Phase 0**: investigate the Matchlock Go SDK and answer
-the seven open questions listed in the plan. The Matchlock source is at
-https://github.com/jingkaihe/matchlock — read `pkg/sdk` and `examples/go` there.
+Implement a new `matchlock` runtime so that `contagent <cmd>` can boot a
+Matchlock microVM, run `<cmd>`, stream stdout/stderr, propagate the exit code,
+and tear down the VM. This is the walking skeleton — no git transport, no
+secrets, no network policy. Those come in later phases.
 
-## What to produce
+**Acceptance criteria for the entire phase:**
+`contagent --runtime matchlock echo hello` prints `hello` and exits 0. The VM
+is gone afterward (verify via `matchlock list`).
 
-Create `docs/matchlock-sdk-findings.md` with your answers. For each of the seven
-questions below, provide:
+## Issues
 
-- The answer, with exact Go symbols (type names, method names, full signatures).
-- A tag: `confirmed`, `cli-only`, or `not-available`.
-- A short code snippet showing how we'd call it from contagent.
+Work is tracked as individual files in `issues/`. Each file has a `Status`
+field at the top: `open`, `in_progress`, or `done`. Update the status when
+you claim or complete an issue, and commit the status change with your code.
 
-### The seven questions
+| Issue | Summary | Depends on |
+|-------|---------|------------|
+| [P1-1](issues/P1-1.md) | Add Matchlock SDK dependency and create package skeleton | — |
+| [P1-2](issues/P1-2.md) | Implement image building via CLI | P1-1 |
+| [P1-3](issues/P1-3.md) | Implement sandbox lifecycle (create, launch, teardown) | P1-1 |
+| [P1-4](issues/P1-4.md) | Implement InspectUser and stub CopyTo | P1-3 |
+| [P1-5](issues/P1-5.md) | Implement command execution and output streaming | P1-3 |
+| [P1-6](issues/P1-6.md) | Wire matchlock runtime into config and main.go | P1-2, P1-3, P1-4, P1-5 |
+| [P1-7](issues/P1-7.md) | End-to-end validation and cleanup | P1-6 |
 
-1. **Mount system.** Can you mount an arbitrary host directory into the VM at a
-   chosen path? Is the mount writable in-guest, and do writes propagate back to
-   the host? This determines topology A vs. B for repo transport.
+To find ready work, look for issues with `Status: open` whose dependencies are
+all `Status: done`.
 
-2. **Interactive PTY.** Confirm `ExecInteractive` (or equivalent) exists, its
-   signature, and how terminal resize (SIGWINCH) is surfaced.
+## Context
 
-3. **Detached + reattach.** Are "run detached" and "exec into a running sandbox"
-   available in the Go SDK, or only via the CLI?
+Read these files before starting any issue:
 
-4. **Port-forward.** SDK or CLI-only?
+- `PLAN.md` — Full rewrite plan. Phase 1 is the walking skeleton.
+- `docs/matchlock-sdk-findings.md` — Phase 0 findings. Contains exact SDK
+  symbols and signatures.
+- `internal/runtime/runtime.go` — The `Runtime` and `Container` interfaces
+  that must be implemented.
+- `internal/apple/` — Reference implementation. The apple runtime follows a
+  similar CLI-shelling pattern and is a good model for structure and testing.
 
-5. **Lifecycle.** Exact semantics of `client.Launch`, `client.Close(code)`,
-   `client.Remove()` — what each cleans up, and whether `Remove` also drops
-   mounted volumes/overlays.
+### Key SDK symbols (from Phase 0 findings)
 
-6. **Network allowlist.** Confirm `AllowHost`, `AddHost(name, ip)`,
-   `AddSecret(name, value, host)` signatures. Can the allowlist be mutated after
-   launch, or only at build time?
+```go
+// Builder
+sdk.New(image string) *SandboxBuilder
+builder.MountHostDir(guestPath, hostPath string) *SandboxBuilder
 
-7. **Build path.** How to produce/run a VM from a Dockerfile or OCI image, and
-   where image caching lives.
+// Client lifecycle
+client.Launch(b *SandboxBuilder) (string, error)
+client.Close(timeout time.Duration) error
+client.Remove() error
 
-## After answering
+// Execution
+client.Exec(ctx, command string, opts *ExecOptions) (*ExecResult, error)
+client.ExecStream(ctx, command string, opts *ExecStreamOptions) (*ExecResult, error)
+client.ExecInteractive(ctx, command string, opts *ExecInteractiveOptions) (*ExecInteractiveResult, error)
 
-Based on your findings, add a **Recommendations** section at the bottom of the
-findings doc that states:
+type ExecOptions struct {
+    WorkingDir string
+    User       string
+}
+type ExecStreamOptions struct {
+    WorkingDir string
+    User       string
+    Stdout     io.Writer
+    Stderr     io.Writer
+    Stdin      io.Reader
+}
+type ExecResult struct {
+    ExitCode   int
+    Stdout     string
+    Stderr     string
+    DurationMS int64
+}
+```
 
-- Whether we should use topology A (push-from-inside) or B (push-from-host).
-- Which features require shelling out to the `matchlock` CLI vs. using the SDK.
-- Any SDK gaps or surprises that affect the plan.
+### Architecture decision
 
-## Branching
+The matchlock runtime follows the same `Runtime` + `Container` interface pattern
+as the docker and apple runtimes. The matchlock `Container` implementation holds
+an `sdk.Client` and manages the VM lifecycle through the SDK methods above.
 
-- All new code must be based off the `v2` branch.
-- When creating pull requests, set `v2` as the base branch.
+The apple runtime is the closest analog: it also creates a long-running sandbox
+first, then execs commands into it. Use it as a structural reference.
+
+**Key difference from docker/apple:** The matchlock runtime uses `MountHostDir`
+to mount the repo into the VM instead of copying a tar archive via `CopyTo`.
+This means `CopyTo` is a no-op for matchlock. The mount is configured during
+`CreateContainer` and the repo enters the VM automatically when the sandbox
+launches.
 
 ## Ground rules
 
-- Do not guess. If a capability isn't in the SDK source, say `not-available` or
-  `cli-only` — don't fabricate method names.
-- Read the actual Go source in the Matchlock repo. Do not rely on READMEs alone.
-- Keep the findings doc concise — tables and code blocks, not prose.
+- **Do not modify the `Runtime` or `Container` interfaces.** The matchlock
+  runtime must conform to them as-is. If something doesn't fit, note it as a
+  follow-up issue but make it work within the current interface.
+- **Follow existing patterns.** The apple runtime (`internal/apple/`) is the
+  structural reference. Match its conventions for error messages, compile-time
+  checks, test structure, and command execution.
+- **No git transport in this phase.** The git server, archive creation, and
+  branch management are reused from existing code in `main.go`. Phase 1 only
+  adds the matchlock runtime — the existing git flow calls `CopyTo` which is a
+  no-op for matchlock.
+- **No secrets injection in this phase.** Pass `ANTHROPIC_API_KEY` as a plain
+  env var for now. Phase 4 replaces this with `AddSecret`.
+- **No network policy in this phase.** The sandbox runs with default networking.
+  Phase 4 adds `AllowHost` and default-deny egress.
+- **All new code must be based off the `v2` branch.** When creating pull
+  requests, set `v2` as the base branch.
+- **Update issue status** when claiming or completing work. Commit the status
+  change with the code so tracking stays in sync with the implementation.
